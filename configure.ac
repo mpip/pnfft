@@ -418,6 +418,11 @@ AM_CONDITIONAL(HAVE_LATEX,
 	test "x$MAKEINDEX" != xno && 
 	test "x$BIBTEX" != xno])
 
+if test "x$enable_doc" != xno ; then
+  AC_CONFIG_FILES([doc/Makefile doc/latexinc.sh])
+  AC_CONFIG_LINKS([doc/latex-manual.sh:doc/latex-manual.sh])
+fi
+
 ################################################################################
 # create output files
 ################################################################################
@@ -454,10 +459,9 @@ AC_CONFIG_FILES(Makefile \
 		util/Makefile \
 		api/Makefile \
 		tests/Makefile \
-		tests/f03/Makefile \
-                doc/Makefile \
-                doc/latexinc.sh)
+		tests/f03/Makefile)
 
-
+AC_CONFIG_LINKS([tests/build_checks.sh:tests/build_checks.sh
+                 tests/run_checks.sh:tests/run_checks.sh])
 
 AC_OUTPUT

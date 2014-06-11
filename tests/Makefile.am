@@ -15,14 +15,16 @@ AM_CPPFLAGS += -I$(top_srcdir)/api
 # Libraries to add to all programs that are built.
 LDADD = $(top_builddir)/lib@PNFFT_PREFIX@pnfft@PREC_SUFFIX@.la $(pfft_LIBS) $(fftw3_mpi_LIBS) $(fftw3_LIBS)
 
+EXTRA_DIST = \
+	plot_m_vs_error.py \
+	build_checks.sh \
+	run_checks.sh
+
 # These programs are built by 'make check' and may be tested afterwards.
 check_PROGRAMS = \
 	simple_test \
 	simple_test_c2r
 
-#if ENABLE_COMMON_PNFFT
-# do not compile checks
-#else
 check_PROGRAMS += \
 	check_trafo check_trafo_transposed \
 	check_trafo_grad check_trafo_transposed_grad \
@@ -36,8 +38,4 @@ check_PROGRAMS += \
 	check_trafo_vs_ndft_transposed_2d \
 	simple_test_c2r_c2c_compare_real simple_test_c2r_c2c_compare_complex \
 	simple_test_c2r_c2c_compare_grad simple_test_c2r_c2c_compare_timer
-#endif
-
-EXTRA_DIST = \
-	plot_m_vs_error.py
 
