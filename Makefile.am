@@ -11,7 +11,12 @@ libtool: $(LIBTOOL_DEPS)
 ACLOCAL_AMFLAGS = -I m4
 
 # Subdirectories
-SUBDIRS = kernel util api . doc
+SUBDIRS = kernel util api .
+
+if ENABLE_DOC
+SUBDIRS += doc
+endif
+
 DIST_SUBDIRS = $(SUBDIRS) tests
 
 # Tests work with double precision only.
