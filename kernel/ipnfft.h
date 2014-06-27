@@ -116,7 +116,9 @@ typedef ptrdiff_t INT;
 #  define pnfft_cosh(_x_)  PNFFT_MATH(cosh)(_x_) 
 #  define pnfft_tan(_x_)   PNFFT_MATH(tan)(_x_) 
 #  define pnfft_fabs(_x_)  PNFFT_MATH(fabs)(_x_) 
+#  define pnfft_log(_x_)   PNFFT_MATH(log)(_x_) 
 #  define pnfft_log2(_x_)  PNFFT_MATH(log2)(_x_) 
+#  define pnfft_log10(_x_) PNFFT_MATH(log10)(_x_) 
 
 /* define MPI-FFTW name mangeling  */
 #define XM(name)  X(CONCAT(mpi_, name))
