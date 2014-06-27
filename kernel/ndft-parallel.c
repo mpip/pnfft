@@ -159,14 +159,6 @@ static void init_intpol_table_dpsi(
     INT n, int m, int dim,
     const PNX(plan) wind_param,
     R *table);
-// static void init_intpol_table_psi(
-//     INT num_nodes, INT n, int m, int dim,
-//     const PNX(plan) wind_param,
-//     R *table);
-// static void init_intpol_table_dpsi(
-//     INT num_nodes, INT n, int m, int dim,
-//     const PNX(plan) wind_param,
-//     R *table);
 static R psi_gaussian(
     R x, INT n, R b);
 static R dpsi_gaussian(
@@ -217,7 +209,7 @@ static R derivative_bound_guess(
 
 
 static R get_derivative_bound(
-    PNX(plan) ths, intpol_order
+    PNX(plan) ths, int intpol_order
     )
 {
   /* TODO: implement bound for sinc, kaiser, bessel_i0 and gaussian */
@@ -238,15 +230,15 @@ static INT calc_intpol_num_nodes(
   switch(intpol_order){
     case 0: c = 1.0; break;
     case 1: c = 1.0/8.0; break;
-    case 2: c = fcs_sqrt(3)/9.0; break;
+    case 2: c = pnfft_sqrt(3)/9.0; break;
     case 3: c = 3.0/128.0; break;
     default: return 0; /* no interpolation */
   }
    
   /* Compute the max. value of the regularization derivative one order higher
    * than the interpolation order. This gives the rest term of the taylor expansion. */ 
-  M_pot   = get_derivative_bound(ths, interpolation_order+1);
-  M_force = get_derivative_bound(ths, interpolation_order+2);
+  M_pot   = get_derivative_bound(ths, intpol_order+1);
+  M_force = get_derivative_bound(ths, intpol_order+2);
 
   /* We use the same number of interpolation nodes for potentials and forces.
    * Be sure, that accuracy is fulfilled for both. */
@@ -269,7 +261,7 @@ static INT calc_intpol_num_nodes(
   /* Compute next power of two >= N to optimize memory access */
   N = pnfft_pow( 2.0, pnfft_ceil(pnfft_log(N)/pnfft_log(2)) );
 
-  return (fcs_int) N;
+  return (INT) N;
 }
 #endif
 
@@ -867,10 +859,10 @@ PNX(plan) PNX(init_internal)(
   /* plan ghost cell send and receive */
   if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
     ths->gcplan = PX(plan_many_rgc)(3, no, howmany, PFFT_DEFAULT_BLOCKS,
-        gcells_below, gcells_above, ths->g2, comm_cart, 0);
+        gcells_below, gcells_above, (pnfft_complex*) ths->g2, comm_cart, 0);
   else
     ths->gcplan = PX(plan_many_cgc)(3, no, howmany, PFFT_DEFAULT_BLOCKS,
-        gcells_below, gcells_above, ths->g2, comm_cart, 0);
+        gcells_below, gcells_above, (pnfft_complex*) ths->g2, comm_cart, 0);
 
   /* precompute deconvultion in Fourier space */
   if(pnfft_flags & PNFFT_PRE_PHI_HAT){

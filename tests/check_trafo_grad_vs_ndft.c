@@ -10,7 +10,7 @@ static void pnfft_perform_guru(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M,
-    int *m, int *window,
+    int *m, int *window, int *intpol,
     double *x_max, int *np);
 static void init_random_x(
     const double *lo, const double *up,
@@ -45,7 +45,8 @@ int main(int argc, char **argv){
   np[0]=2; np[1]=2; np[2]=2;
   
   /* set values by commandline */
-  init_parameters(argc, argv, N, n, &local_M, &m, &window, x_max, np);
+  int intpol = -1;
+  init_parameters(argc, argv, N, n, &local_M, &m, &window, &intpol, x_max, np);
 
   /* if M or n are set to zero, we choose nice values */
   local_M = (local_M==0) ? N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]) : local_M;
@@ -60,6 +61,15 @@ int main(int argc, char **argv){
     default: window_flag = PNFFT_WINDOW_KAISER_BESSEL;
   }
 
+  unsigned intpol_flag;
+  switch(intpol){
+    case 0: intpol_flag = PNFFT_PRE_CONST_PSI; break;
+    case 1: intpol_flag = PNFFT_PRE_LIN_PSI; break;
+    case 2: intpol_flag = PNFFT_PRE_QUAD_PSI; break;
+    case 3: intpol_flag = PNFFT_PRE_KUB_PSI; break;
+    default: intpol_flag = (window==0) ? PNFFT_FG_PSI : 0;
+  }
+
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
   pfft_printf(MPI_COMM_WORLD, "* for  N[0] x N[1] x N[2] = %td x %td x %td Fourier coefficients (change with -pnfft_N * * *)\n", N[0], N[1], N[2]);
@@ -72,16 +82,28 @@ int main(int argc, char **argv){
     case 1: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BSPLINE) "); break;
     case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_SINC_POWER) "); break;
     case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BESSEL_I0) "); break;
-    default: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
+    default: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) ");
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_window *),\n");
+  pfft_printf(MPI_COMM_WORLD, "*      intpol = %d interpolation order ", intpol);
+  switch(intpol){
+    case 0: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CONST_PSI) "); break;
+    case 1: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_LIN_PSI) "); break;
+    case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_QUAD_PSI) "); break;
+    case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_KUB_PSI) "); break;
+    default: if(window==0)
+               pfft_printf(MPI_COMM_WORLD, "(PNFFT_FG_PSI) ");
+             else
+               pfft_printf(MPI_COMM_WORLD, "(No interpolation enabled) ");
+  }
+  pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_intpol *),\n");
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 
 //  window_flag |= PNFFT_PRE_KUB_PSI;
 
   /* calculate parallel NFFT */
-  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag, np, MPI_COMM_WORLD);
+  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag, np, MPI_COMM_WORLD);
 
   /* free mem and finalize */
   pnfft_cleanup();
@@ -176,16 +198,17 @@ static void pnfft_perform_guru(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M,
-    int *m, int *window,
+    int *m, int *window, int *intpol,
     double *x_max, int *np
     )
 {
-  pfft_get_args(argc, argv, "-pnfft_M", 1, PFFT_PTRDIFF_T, M);
+  pfft_get_args(argc, argv, "-pnfft_local_M", 1, PFFT_PTRDIFF_T, M);
   pfft_get_args(argc, argv, "-pnfft_N", 3, PFFT_PTRDIFF_T, N);
   pfft_get_args(argc, argv, "-pnfft_n", 3, PFFT_PTRDIFF_T, n);
   pfft_get_args(argc, argv, "-pnfft_np", 3, PFFT_INT, np);
   pfft_get_args(argc, argv, "-pnfft_m", 1, PFFT_INT, m);
   pfft_get_args(argc, argv, "-pnfft_window", 1, PFFT_INT, window);
+  pfft_get_args(argc, argv, "-pnfft_intpol", 1, PFFT_INT, intpol);
   pfft_get_args(argc, argv, "-pnfft_x_max", 3, PFFT_DOUBLE, x_max);
 }
 
