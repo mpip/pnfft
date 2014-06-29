@@ -31,6 +31,7 @@
 #define USE_EWALD_SPLITTING_FUNCTION_AS_WINDOW 0
 #define TUNE_B_FOR_EWALD_SPLITTING 0
 #define PNFFT_TUNE_LOOP_ADJ_B 0
+#define PNFFT_TUNE_PRECOMPUTE_INTPOL 0
 
 static void loop_over_particles_adj(
     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
@@ -280,10 +281,18 @@ static void init_intpol_table_psi(
    * This equivalent to f[-order/2], ... , f[(order+1)/2]
    * with integer division. */
   INT ind=0;
-  for(INT k=0; k<num_nodes_per_interval; k++)
-    for(INT c=0; c<cutoff; c++)
-      for(INT i=-intpol_order/2; i<=(intpol_order+1)/2; i++)
-        table[ind++] = PNX(psi)(wind_param, dim, (-m + (R)(-k+i)/num_nodes_per_interval + c)/n);
+  for(INT k=0; k<num_nodes_per_interval; k++){
+    for(INT c=0; c<cutoff; c++){
+      for(INT i=-intpol_order/2; i<=(intpol_order+1)/2; i++){
+        /* avoid multiple evaluations of psi(...) at the same points */
+        if( (k > 0) && (i < (intpol_order+1)/2) )
+          table[ind] = table[ind - cutoff*(intpol_order+1) + 1];
+        else
+          table[ind] = PNX(psi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n);
+        ++ind;
+      }
+    }
+  }
 }
 
 static void init_intpol_table_dpsi(
@@ -301,12 +310,20 @@ static void init_intpol_table_dpsi(
    * This equivalent to f[-order/2], ... , f[(order+1)/2]
    * with integer division. */
   INT ind=0;
-  for(INT k=0; k<num_nodes_per_interval; k++)
-    for(INT c=0; c<cutoff; c++)
-      for(INT i=-intpol_order/2; i<=(intpol_order+1)/2; i++)
-        table[ind++] = PNX(dpsi)(wind_param, dim, (-m   + (R)(-k+i)/num_nodes_per_interval + c)/n);
-}
+  for(INT k=0; k<num_nodes_per_interval; k++){
+    for(INT c=0; c<cutoff; c++){
+      for(INT i=-intpol_order/2; i<=(intpol_order+1)/2; i++){
+        /* avoid multiple evaluations of dpsi(...) at the same points */
+        if( (k > 0) && (i < (intpol_order+1)/2) )
+          table[ind] = table[ind - cutoff*(intpol_order+1) + 1];
+        else
+          table[ind] = -PNX(dpsi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n);
+        ++ind;
+      }
+    }
+  }
 
+}
 
 
 void PNX(trafo_A)(
@@ -887,11 +904,18 @@ PNX(plan) PNX(init_internal)(
   else
     ths->intpol_order = -1;
 
+#if PNFFT_TUNE_PRECOMPUTE_INTPOL
+  double _timer_ = -MPI_Wtime();
+#endif
+
   if(pnfft_flags & PNFFT_PRE_INTPOL_PSI){
 #if PNFFT_ENABLE_CALC_INTPOL_NODES
     ths->intpol_num_nodes = calc_intpol_num_nodes(ths->intpol_order, 1e-16);
 #else
-    ths->intpol_num_nodes = 32768;
+    /* For m=15 we get 1e-15 accuracy with 3rd order interpolation and 2048 interpolation nodes per interval,
+     * which gives a total number of (2*15+1)*2048 interpolation nodes.
+     * Keep the total number of interpolation nodes (2*m+1)*intpol_num_nodes constant for all other 'm'. */
+    ths->intpol_num_nodes = pnfft_ceil( (2.0*15.0+1.0)/ths->cutoff ) * 2048;
 #endif
     ths->intpol_tables_psi = (R**) PNX(malloc)(sizeof(R*) * (size_t) d);
     for(int t=0; t<d; t++){
@@ -908,6 +932,10 @@ PNX(plan) PNX(init_internal)(
       }
     }
   }
+#if PNFFT_TUNE_PRECOMPUTE_INTPOL
+  _timer_ += MPI_Wtime();
+  fprintf(stderr, "\nPrecomputation of interpolation tables took %e\n\n", _timer_);
+#endif
 
   /* init compute flags before malloc f and f_grad */
   ths->compute_flags = 0;
@@ -1307,9 +1335,10 @@ static void pre_tensor_intpol(
   const int d=3;
 
   for(int t=0; t<d; t++){
-    R dist = n[t]*x[t] - floor_nx[t];
-    INT k = (INT) pnfft_floor(dist * intpol_num_nodes) * cutoff * (intpol_order+1);
-    R dist_k = 1.0 + pnfft_floor(intpol_num_nodes*dist) - intpol_num_nodes*dist;
+    R dist = n[t]*x[t] - floor_nx[t] ; /* 0<= dist < 1 */
+    INT k = (INT) pnfft_floor(dist*intpol_num_nodes);
+    R dist_k = dist*intpol_num_nodes - (R)k; /* 0 <= dist_k < 1 */
+    k *= cutoff * (intpol_order+1);
     switch(intpol_order){
       case 0 :
         for(int s=0; s<cutoff; s++, k++)
