@@ -584,7 +584,7 @@ R PNX(bessel_i1)(R x)
   else
   {
     /* x in (15, \infty) */
-    const R y = (K(30.0) - x) / x; /* use this if the Chebyshev approximation was computed on [0,15] */
+    const R y = (K(30.0) - x) / x; /* use this if the Chebyshev approximation was computed on [0,1/15] */
 //     const R y = K(1.0) / x; /* use this if the Chebyshev approximation was computed on [-1,1] */
     return (pnfft_exp(x) / pnfft_sqrt(x)) * (evaluate_chebyshev(N2, P2, y) /
       evaluate_chebyshev(M2, Q2, y));
