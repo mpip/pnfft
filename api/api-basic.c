@@ -144,8 +144,8 @@ static void grad_ik_complex_input(
   /* calculate gradient component wise */
   for(int dim =0; dim<3; dim++){
     ths->timer_trafo[PNFFT_TIMER_MATRIX_D] -= MPI_Wtime();
-    PNX(scale_ik_diff_c2c)(ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
-      ths->g1);
+    PNX(scale_ik_diff_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
+        (C*)ths->g1);
     ths->timer_trafo[PNFFT_TIMER_MATRIX_D] += MPI_Wtime();
     
     ths->timer_trafo[PNFFT_TIMER_MATRIX_F] -= MPI_Wtime();
@@ -389,14 +389,14 @@ void PNX(set_f_hat_real)(
     R *f_hat, PNX(plan) ths
     )
 {
-  ths->f_hat = f_hat;
+  ths->f_hat = (C*)f_hat;
 }
 
 R* PNX(get_f_hat_real)(
     const PNX(plan) ths
     )
 {
-  return ths->f_hat;
+  return (R*)ths->f_hat;
 }
 
 void PNX(set_f_real)(
@@ -638,7 +638,7 @@ void PNX(apr_complex_3d)(
      const char *name, MPI_Comm comm
      )
 {
-  apr_3d(data, local_N, local_N_start, pnfft_flags, name, comm, 1);
+  apr_3d((R*)data, local_N, local_N_start, pnfft_flags, name, comm, 1);
 }
 
 
