@@ -250,6 +250,11 @@ AC_SUBST(SHARED_VERSION_INFO)
 # May need sincos from libm.
 AC_CHECK_LIB([m], [sincos])
 
+# Include GSL header and libs.
+AC_CHECK_HEADERS([gsl/gsl_sf_bessel.h],[],[AC_MSG_ERROR([Required header files for GNU Scientific Library not found.])])
+AC_CHECK_LIB([gslcblas],[cblas_dgemm],[],[AC_MSG_ERROR([Required library for GNU Scientific Library not found.])])
+AC_CHECK_LIB([gsl],[gsl_blas_dgemm],[],[AC_MSG_ERROR([Required library for GNU Scientific Library not found.])])
+
 # Check for OpenMP.
 AX_OPENMP
 

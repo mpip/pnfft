@@ -22,6 +22,7 @@
 #include "pnfft.h"
 #include "ipnfft.h"
 #include "bessel_i0.h"
+#include "gsl/gsl_sf_bessel.h"
 
 #if defined(PNFFT_LDOUBLE)
   #if LDBL_MANT_DIG > 64
@@ -370,6 +371,9 @@ static inline R evaluate_chebyshev(const INT n, const R *c, const R x)
 
 R PNX(bessel_i0)(R x)
 {
+  /* forward to GSL implementation */
+  return (R)gsl_sf_bessel_I0((double)x);
+
   if (x < 0)
   {
     /* even function */
