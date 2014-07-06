@@ -13,12 +13,6 @@ ACLOCAL_AMFLAGS = -I m4
 # Subdirectories
 SUBDIRS = kernel util api .
 
-if ENABLE_DOC
-SUBDIRS += doc
-endif
-
-DIST_SUBDIRS = $(SUBDIRS) tests
-
 # Tests work with double precision only.
 if ENABLE_TESTS
 if ! SINGLE
@@ -26,6 +20,10 @@ if ! LDOUBLE
 SUBDIRS += tests
 endif
 endif
+endif
+
+if ENABLE_DOC
+SUBDIRS += doc
 endif
 
 EXTRA_DIST = bootstrap.sh CONVENTIONS pnfft.pc.in
