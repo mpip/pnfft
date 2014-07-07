@@ -61,7 +61,7 @@ int main(int argc, char **argv){
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
   pfft_printf(MPI_COMM_WORLD, "* for  N[0] x N[1] x N[2] = %td x %td x %td Fourier coefficients (change with -pnfft_N * * *)\n", N[0], N[1], N[2]);
-  pfft_printf(MPI_COMM_WORLD, "* at   M = %td nodes (equal to N[0] x N[1] x N[2]\n", N[0]*N[1]*N[2]);
+  pfft_printf(MPI_COMM_WORLD, "* at   local_M = %td nodes (equal to N[0] x N[1] x N[2]\n", N[0]*N[1]*N[2]);
   pfft_printf(MPI_COMM_WORLD, "* with n[0] x n[1] x n[2] = %td x %td x %td FFT grid size (change with -pnfft_n * * *),\n", n[0], n[1], n[2]);
   pfft_printf(MPI_COMM_WORLD, "*      m = %d real space cutoff (change with -pnfft_m *),\n", m);
   pfft_printf(MPI_COMM_WORLD, "*      window = %d window function ", window);

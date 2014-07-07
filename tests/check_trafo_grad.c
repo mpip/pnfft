@@ -163,7 +163,7 @@ static void init_parameters(
     double *x_max, int *np
     )
 {
-  pfft_get_args(argc, argv, "-pnfft_M", 1, PFFT_PTRDIFF_T, M);
+  pfft_get_args(argc, argv, "-pnfft_local_M", 1, PFFT_PTRDIFF_T, M);
   pfft_get_args(argc, argv, "-pnfft_N", 3, PFFT_PTRDIFF_T, N);
   pfft_get_args(argc, argv, "-pnfft_n", 3, PFFT_PTRDIFF_T, n);
   pfft_get_args(argc, argv, "-pnfft_np", 3, PFFT_INT, np);
