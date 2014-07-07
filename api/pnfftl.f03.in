@@ -26,7 +26,7 @@
   integer(C_INT), parameter :: PNFFT_PRE_CONST_PSI = 4
   integer(C_INT), parameter :: PNFFT_PRE_LIN_PSI = 8
   integer(C_INT), parameter :: PNFFT_PRE_QUAD_PSI = 16
-  integer(C_INT), parameter :: PNFFT_PRE_KUB_PSI = 32
+  integer(C_INT), parameter :: PNFFT_PRE_CUB_PSI = 32
   integer(C_INT), parameter :: PNFFT_PRE_PSI = 64
   integer(C_INT), parameter :: PNFFT_PRE_FULL_PSI = 128
   integer(C_INT), parameter :: PNFFT_MALLOC_X = 256
@@ -55,7 +55,7 @@
   integer(C_INT), parameter :: PNFFT_PRE_INTPOL_PSI = PNFFT_PRE_CONST_PSI &
       + PNFFT_PRE_LIN_PSI &
       + PNFFT_PRE_QUAD_PSI &
-      + PNFFT_PRE_KUB_PSI
+      + PNFFT_PRE_CUB_PSI
   integer(C_INT), parameter :: PNFFT_PRE_ONE_PSI = PNFFT_PRE_INTPOL_PSI &
       + PNFFT_PRE_FG_PSI &
       + PNFFT_PRE_PSI &

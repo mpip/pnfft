@@ -265,8 +265,8 @@ static void write_run_specific_infos(
     PX(fprintf)(comm, file, " | PNFFT_PRE_LIN_PSI");
   if(ths->pnfft_flags & PNFFT_PRE_QUAD_PSI)
     PX(fprintf)(comm, file, " | PNFFT_PRE_QUAD_PSI");
-  if(ths->pnfft_flags & PNFFT_PRE_KUB_PSI)
-    PX(fprintf)(comm, file, " | PNFFT_PRE_KUB_PSI");
+  if(ths->pnfft_flags & PNFFT_PRE_CUB_PSI)
+    PX(fprintf)(comm, file, " | PNFFT_PRE_CUB_PSI");
   if(ths->pnfft_flags & PNFFT_PRE_FG_PSI)
     PX(fprintf)(comm, file, " | PNFFT_PRE_FG_PSI");
   if(ths->pnfft_flags & PNFFT_PRE_PSI)

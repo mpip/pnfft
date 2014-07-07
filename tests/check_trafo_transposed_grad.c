@@ -74,7 +74,7 @@ int main(int argc, char **argv){
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 
-//  window_flag |= PNFFT_PRE_KUB_PSI;
+//  window_flag |= PNFFT_PRE_CUB_PSI;
 
   /* calculate parallel NFFT */
   pnfft_perform_guru(N, n, M, m,   x_max, window_flag, np, MPI_COMM_WORLD,

@@ -899,7 +899,7 @@ PNX(plan) PNX(init_internal)(
     ths->intpol_order = 1;
   else if(pnfft_flags & PNFFT_PRE_QUAD_PSI)
     ths->intpol_order = 2;
-  else if(pnfft_flags & PNFFT_PRE_KUB_PSI)
+  else if(pnfft_flags & PNFFT_PRE_CUB_PSI)
     ths->intpol_order = 3;
   else
     ths->intpol_order = -1;

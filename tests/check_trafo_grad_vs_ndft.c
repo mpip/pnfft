@@ -66,7 +66,7 @@ int main(int argc, char **argv){
     case 0: intpol_flag = PNFFT_PRE_CONST_PSI; break;
     case 1: intpol_flag = PNFFT_PRE_LIN_PSI; break;
     case 2: intpol_flag = PNFFT_PRE_QUAD_PSI; break;
-    case 3: intpol_flag = PNFFT_PRE_KUB_PSI; break;
+    case 3: intpol_flag = PNFFT_PRE_CUB_PSI; break;
     default: intpol_flag = (window==0) ? PNFFT_FG_PSI : 0;
   }
 
@@ -90,7 +90,7 @@ int main(int argc, char **argv){
     case 0: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CONST_PSI) "); break;
     case 1: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_LIN_PSI) "); break;
     case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_QUAD_PSI) "); break;
-    case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_KUB_PSI) "); break;
+    case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CUB_PSI) "); break;
     default: if(window==0)
                pfft_printf(MPI_COMM_WORLD, "(PNFFT_FG_PSI) ");
              else
@@ -100,7 +100,7 @@ int main(int argc, char **argv){
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 
-//  window_flag |= PNFFT_PRE_KUB_PSI;
+//  window_flag |= PNFFT_PRE_CUB_PSI;
 
   /* calculate parallel NFFT */
   pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag, np, MPI_COMM_WORLD);
