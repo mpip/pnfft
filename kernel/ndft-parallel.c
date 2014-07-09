@@ -2253,20 +2253,20 @@ void PNX(trafo_B_grad_ad)(
          && ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
         /* compute f and grad_f at once */
         PNX(assign_f_and_grad_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi, m0, local_ngc, cutoff, 1, 1, 0,
-            ths->f + j, ths->grad_f + 3*j);
+            ths, p, ths->g2, pre_psi, pre_dpsi, 2*m0, local_ngc, cutoff, 2, 2, 0,
+            ths->f + j*2, ths->grad_f + 3*j*2);
       }
       else if(ths->compute_flags & PNFFT_COMPUTE_F){
         /* compute f */
         PNX(assign_f_r2r)(
-            ths, p, ths->g2, pre_psi, m0, local_ngc, cutoff, 1, 0,
-            ths->f + j);
+            ths, p, ths->g2, pre_psi, 2*m0, local_ngc, cutoff, 2, 0,
+            ths->f + j*2);
       } 
       else if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
         /* compute grad_f */
         PNX(assign_grad_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi, m0, local_ngc, cutoff, 1, 1, 0,
-            ths->grad_f + 3*j);
+            ths, p, ths->g2, pre_psi, pre_dpsi, 2*m0, local_ngc, cutoff, 2, 2, 0,
+            ths->grad_f + 3*j*2);
       }
     } else {
       if(ths->compute_flags & PNFFT_COMPUTE_F 
