@@ -33,6 +33,8 @@
 #define PNFFT_TUNE_LOOP_ADJ_B 0
 #define PNFFT_TUNE_PRECOMPUTE_INTPOL 0
 
+#define PNFFT_SAVE_FREE(array) = if(array != NULL) free(array);
+
 static void loop_over_particles_adj(
     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
     INT *sorted_index);
@@ -752,66 +754,6 @@ PNX(plan) PNX(init_internal)(
   for(int t = 0;t < d; t++)
     ths->sigma[t] = ((R)n[t])/N[t];
 
-  /* init window specific parameters */
-  ths->b = (R*) PNX(malloc)(sizeof(R) * (size_t) d);
-  if(pnfft_flags & PNFFT_WINDOW_GAUSSIAN){
-    for(int t=0; t<d; t++)
-      ths->b[t]= ((R)m / PNFFT_PI) * K(2.0)*ths->sigma[t] / (K(2.0)*ths->sigma[t]-K(1.0));
-#if TUNE_B_FOR_EWALD_SPLITTING
-    for(int t=0; t<d; t++)
-      ths->b[t]= 0.715303;
-#endif
-#if USE_EWALD_SPLITTING_FUNCTION_AS_WINDOW
-    for(int t=0; t<d; t++){
-      R C=0.976; /* strange constant from paper by D. Lindbo */
-//       R B=10.0; /* box length */
-//       R alpha=0.573; /* tuned Ewald splitting parameter */
-//       R tmp = (R) ths->n[t] / alpha / B;
-//       ths->b[t] -= tmp*tmp;
-//       R tmp = (R) ths->n[t];
-      ths->b[t] = 2.0 * (R)ths->m / (PNFFT_PI * C*C);
-    }
-//     for(int t=0; t<d; t++){
-//       ths->b[t] = 1.2732;
-//     }
-#endif
-    if(pnfft_flags & PNFFT_FG_PSI){
-      ths->exp_const = (R*) PNX(malloc)(sizeof(R) * (size_t) d * ths->cutoff);
-      for(int t=0; t<d; t++)
-        for(int s=0; s<ths->cutoff; s++)
-          ths->exp_const[ths->cutoff*t+s] = pnfft_exp(-s*s/ths->b[t])/(pnfft_sqrt(PNFFT_PI*ths->b[t]));
-    }
-  } else if(pnfft_flags & PNFFT_WINDOW_BSPLINE){
-    /* malloc array for scratch values of de Boor algorithm, no need to initialize */
-    ths->spline_coeffs= (R*) PNX(malloc)(sizeof(R)*2*ths->m);
-  } else if(pnfft_flags & PNFFT_WINDOW_SINC_POWER){
-    /* malloc array for scratch values of de Boor algorithm, no need to initialize */
-    ths->spline_coeffs= (R*) PNX(malloc)(sizeof(R)*2*ths->m);
-    for(int t=0; t<d; t++)
-      ths->b[t]= (R)m * (K(2.0)*ths->sigma[t]) / (K(2.0)*ths->sigma[t]-K(1.0));
-#if TUNE_B_FOR_EWALD_SPLITTING
-//     fprintf(stderr, "Sinc-Power: old b = %.4e\n", ths->b[0]);
-    for(int t=0; t<d; t++)
-      ths->b[t]= 2.25;
-//     fprintf(stderr, "Sinc-Power: new b = %.4e\n", ths->b[0]);
-#endif
-  } else if(pnfft_flags & PNFFT_WINDOW_BESSEL_I0){
-    for(int t=0; t<d; t++)
-      ths->b[t] = (R) PNFFT_PI * (K(2.0) - K(1.0)/ths->sigma[t]);
-#if TUNE_B_FOR_EWALD_SPLITTING
-    for(int t=0; t<d; t++)
-      ths->b[t]= 5.45066;
-#endif
-  } else { /* default window function is Kaiser-Bessel */
-    for(int t=0; t<d; t++)
-      ths->b[t] = (R) PNFFT_PI * (K(2.0) - K(1.0)/ths->sigma[t]);
-#if TUNE_B_FOR_EWALD_SPLITTING
-    for(int t=0; t<d; t++)
-//       ths->b[t]= 5.35;
-      ths->b[t]= 5.7177;
-#endif
-  }
-
   get_size_gcells(m, ths->cutoff, pnfft_flags,
       gcells_below, gcells_above);
 
@@ -881,17 +823,6 @@ PNX(plan) PNX(init_internal)(
     ths->gcplan = PX(plan_many_cgc)(3, no, howmany, PFFT_DEFAULT_BLOCKS,
         gcells_below, gcells_above, (C*) ths->g2, comm_cart, 0);
 
-  /* precompute deconvultion in Fourier space */
-  if(pnfft_flags & PNFFT_PRE_PHI_HAT){
-    ths->pre_inv_phi_hat_trafo = (C*) malloc(sizeof(C) * PNX(sum_INT)(d, ths->local_N));
-    ths->pre_inv_phi_hat_adj   = (C*) malloc(sizeof(C) * PNX(sum_INT)(d, ths->local_N));
-    
-    PNX(precompute_inv_phi_hat_trafo)(ths,
-        ths->pre_inv_phi_hat_trafo);
-    PNX(precompute_inv_phi_hat_adj)(ths,
-        ths->pre_inv_phi_hat_adj);
-  }
-
   /* init interpolation of window function */
   if(pnfft_flags & PNFFT_PRE_CONST_PSI)
     ths->intpol_order = 0;
@@ -904,38 +835,64 @@ PNX(plan) PNX(init_internal)(
   else
     ths->intpol_order = -1;
 
-#if PNFFT_TUNE_PRECOMPUTE_INTPOL
-  double _timer_ = -MPI_Wtime();
-#endif
+  /* init window specific parameters */
+  ths->b = (R*) PNX(malloc)(sizeof(R) * (size_t) d);
 
-  if(pnfft_flags & PNFFT_PRE_INTPOL_PSI){
-#if PNFFT_ENABLE_CALC_INTPOL_NODES
-    ths->intpol_num_nodes = calc_intpol_num_nodes(ths->intpol_order, 1e-16);
-#else
-    /* For m=15 we get 1e-15 accuracy with 3rd order interpolation and 2048 interpolation nodes per interval,
-     * which gives a total number of (2*15+1)*2048 interpolation nodes.
-     * Keep the total number of interpolation nodes (2*m+1)*intpol_num_nodes constant for all other 'm'. */
-    ths->intpol_num_nodes = pnfft_ceil( (2.0*15.0+1.0)/ths->cutoff ) * 2048;
+  if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN){
+    for(int t=0; t<ths->d; t++)
+      ths->b[t]= ((R)ths->m / PNFFT_PI) * K(2.0)*ths->sigma[t] / (K(2.0)*ths->sigma[t]-K(1.0));
+#if TUNE_B_FOR_EWALD_SPLITTING
+    for(int t=0; t<ths->d; t++)
+      ths->b[t]= 0.715303;
 #endif
-    ths->intpol_tables_psi = (R**) PNX(malloc)(sizeof(R*) * (size_t) d);
-    for(int t=0; t<d; t++){
-      ths->intpol_tables_psi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-      init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, ths,
-          ths->intpol_tables_psi[t]);
+#if USE_EWALD_SPLITTING_FUNCTION_AS_WINDOW
+    for(int t=0; t<ths->d; t++){
+      R C=0.976; /* strange constant from paper by D. Lindbo */
+//       R B=10.0; /* box length */
+//       R alpha=0.573; /* tuned Ewald splitting parameter */
+//       R tmp = (R) ths->n[t] / alpha / B;
+//       ths->b[t] -= tmp*tmp;
+//       R tmp = (R) ths->n[t];
+      ths->b[t] = 2.0 * (R)ths->m / (PNFFT_PI * C*C);
     }
-    if( !(pnfft_flags & (PNFFT_GRAD_IK | PNFFT_GRAD_NONE) ) ){
-      ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
-      for(int t=0; t<d; t++){
-        ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-        init_intpol_table_dpsi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, ths,
-            ths->intpol_tables_dpsi[t]);
-      }
-    }
+//     for(int t=0; t<d; t++){
+//       ths->b[t] = 1.2732;
+//     }
+#endif
+  } else if(pnfft_flags & PNFFT_WINDOW_BSPLINE){
+    /* malloc array for scratch values of de Boor algorithm, no need to initialize */
+    if(ths->spline_coeffs == NULL)
+      ths->spline_coeffs= (R*) PNX(malloc)(sizeof(R)*2*ths->m);
+  } else if(pnfft_flags & PNFFT_WINDOW_SINC_POWER){
+    /* malloc array for scratch values of de Boor algorithm, no need to initialize */
+    if(ths->spline_coeffs == NULL)
+      ths->spline_coeffs= (R*) PNX(malloc)(sizeof(R)*2*ths->m);
+    for(int t=0; t<ths->d; t++)
+      ths->b[t]= (R)ths->m * (K(2.0)*ths->sigma[t]) / (K(2.0)*ths->sigma[t]-K(1.0));
+#if TUNE_B_FOR_EWALD_SPLITTING
+//     fprintf(stderr, "Sinc-Power: old b = %.4e\n", ths->b[0]);
+    for(int t=0; t<ths->d; t++)
+      ths->b[t]= 2.25;
+//     fprintf(stderr, "Sinc-Power: new b = %.4e\n", ths->b[0]);
+#endif
+  } else if(pnfft_flags & PNFFT_WINDOW_BESSEL_I0){
+    for(int t=0; t<ths->d; t++)
+      ths->b[t] = (R) PNFFT_PI * (K(2.0) - K(1.0)/ths->sigma[t]);
+#if TUNE_B_FOR_EWALD_SPLITTING
+    for(int t=0; t<ths->d; t++)
+      ths->b[t]= 5.45066;
+#endif
+  } else { /* default window function is Kaiser-Bessel */
+    for(int t=0; t<ths->d; t++)
+      ths->b[t] = (R) PNFFT_PI * (K(2.0) - K(1.0)/ths->sigma[t]);
+#if TUNE_B_FOR_EWALD_SPLITTING
+    for(int t=0; t<ths->d; t++)
+//       ths->b[t]= 5.35;
+      ths->b[t]= 5.7177;
+#endif
   }
-#if PNFFT_TUNE_PRECOMPUTE_INTPOL
-  _timer_ += MPI_Wtime();
-  fprintf(stderr, "\nPrecomputation of interpolation tables took %e\n\n", _timer_);
-#endif
+
+  PNX(init_precompute_window)(ths);
 
   /* init compute flags before malloc f and f_grad */
   ths->compute_flags = 0;
@@ -947,6 +904,69 @@ PNX(plan) PNX(init_internal)(
 
   return ths;
 }
+
+
+void PNX(init_precompute_window)(
+    PNX(plan) ths
+    )
+{
+  if(ths->pnfft_flags & PNFFT_FG_PSI){
+    if(ths->exp_const == NULL)
+      ths->exp_const = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->d * ths->cutoff);
+    for(int t=0; t<ths->d; t++)
+      for(int s=0; s<ths->cutoff; s++)
+        ths->exp_const[ths->cutoff*t+s] = pnfft_exp(-s*s/ths->b[t])/(pnfft_sqrt(PNFFT_PI*ths->b[t]));
+  }
+
+#if PNFFT_TUNE_PRECOMPUTE_INTPOL
+  double _timer_ = -MPI_Wtime();
+#endif
+
+  if(ths->pnfft_flags & PNFFT_PRE_INTPOL_PSI){
+#if PNFFT_ENABLE_CALC_INTPOL_NODES
+    ths->intpol_num_nodes = calc_intpol_num_nodes(ths->intpol_order, 1e-16);
+#else
+    /* For m=15 we get 1e-15 accuracy with 3rd order interpolation and 2048 interpolation nodes per interval,
+     * which gives a total number of (2*15+1)*2048 interpolation nodes.
+     * Keep the total number of interpolation nodes (2*m+1)*intpol_num_nodes constant for all other 'm'. */
+    ths->intpol_num_nodes = pnfft_ceil( (2.0*15.0+1.0)/ths->cutoff ) * 2048;
+#endif
+    if(ths->intpol_tables_psi == NULL)
+      ths->intpol_tables_psi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
+    for(int t=0; t<ths->d; t++){
+      ths->intpol_tables_psi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
+      init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, ths,
+          ths->intpol_tables_psi[t]);
+    }
+    if( !(ths->pnfft_flags & (PNFFT_GRAD_IK | PNFFT_GRAD_NONE) ) ){
+      if(ths->intpol_tables_dpsi == NULL)
+        ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
+      for(int t=0; t<ths->d; t++){
+        ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
+        init_intpol_table_dpsi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, ths,
+            ths->intpol_tables_dpsi[t]);
+      }
+    }
+  }
+#if PNFFT_TUNE_PRECOMPUTE_INTPOL
+  _timer_ += MPI_Wtime();
+  fprintf(stderr, "\nPrecomputation of interpolation tables took %e\n\n", _timer_);
+#endif
+
+  /* precompute deconvultion in Fourier space */
+  if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT){
+    if(ths->pre_inv_phi_hat_trafo == NULL)
+      ths->pre_inv_phi_hat_trafo = (C*) malloc(sizeof(C) * PNX(sum_INT)(ths->d, ths->local_N));
+    if(ths->pre_inv_phi_hat_adj == NULL)
+      ths->pre_inv_phi_hat_adj   = (C*) malloc(sizeof(C) * PNX(sum_INT)(ths->d, ths->local_N));
+    
+    PNX(precompute_inv_phi_hat_trafo)(ths,
+        ths->pre_inv_phi_hat_trafo);
+    PNX(precompute_inv_phi_hat_adj)(ths,
+        ths->pre_inv_phi_hat_adj);
+  }
+}
+
 
 /* x and local_M must be initialized */
 void PNX(precompute_psi)(

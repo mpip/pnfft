@@ -446,6 +446,27 @@ R* PNX(get_x)(
 /* getters for PNFFT internal parameters
  * No setters are implemented for these parameters.
  * Use finalize and init_guru instead. */
+void PNX(set_b)(
+    R b0, R b1, R b2,
+    PNX(plan) ths
+    )
+{
+  ths->b[0] = b0;
+  ths->b[1] = b1;
+  ths->b[2] = b2;
+  PNX(init_precompute_window)(ths);
+}
+
+void PNX(get_b)(
+    const PNX(plan) ths,
+    R *b0, R *b1, R *b2
+    )
+{
+  *b0 = ths->b[0];
+  *b1 = ths->b[1];
+  *b2 = ths->b[2];
+}
+
 int PNX(get_d)(
     const PNX(plan) ths
     )

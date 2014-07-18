@@ -134,6 +134,8 @@
       R *grad_f, PNX(plan) ths);                                                        \
   PNFFT_EXTERN void PNX(set_x)(                                                         \
       R *x, PNX(plan) ths);                                                             \
+  PNFFT_EXTERN void PNX(set_b)(                                                         \
+      R b0, R b1, R b2, PNX(plan) ths);                                                 \
                                                                                         \
   PNFFT_EXTERN C *PNX(get_f_hat)(                                                       \
       const PNX(plan) ths);                                                             \
@@ -164,9 +166,12 @@
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN unsigned PNX(get_pfft_flags)(                                            \
       const PNX(plan) ths);                                                             \
+  PNFFT_EXTERN void PNX(get_b)(                                                         \
+      const PNX(plan) ths,                                                              \
+      R *b0, R *b1, R *b2);                                                             \
                                                                                         \
   PNFFT_EXTERN void PNX(finalize)(                                                      \
-        PNX(plan) ths, unsigned pnfft_finalize_flags);                                  \
+      PNX(plan) ths, unsigned pnfft_finalize_flags);                                    \
                                                                                         \
   PNFFT_EXTERN void PNX(direct_trafo)(                                                  \
       PNX(plan) ths);                                                                   \

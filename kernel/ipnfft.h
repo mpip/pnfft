@@ -273,6 +273,8 @@ void PNX(rmtimer)(
     double* timer);
 
 /* ndft-parallel.c */
+void PNX(init_precompute_window)(
+    PNX(plan) ths);
 void PNX(rmplan)(
     PNX(plan) ths);
 INT PNX(local_size_internal)(
