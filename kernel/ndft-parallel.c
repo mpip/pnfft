@@ -698,7 +698,7 @@ PNX(plan) PNX(init_internal)(
 {
   unsigned pfft_flags=0;
   INT howmany = 1;
-  INT alloc_local_data_in, alloc_local_gc;
+  INT alloc_local_in, alloc_local_out, alloc_local_gc;
   INT gcells_below[3], gcells_above[3];
   INT local_ngc[3], local_gc_start[3];
   PNX(plan) ths;
@@ -757,17 +757,22 @@ PNX(plan) PNX(init_internal)(
   get_size_gcells(m, ths->cutoff, pnfft_flags,
       gcells_below, gcells_above);
 
-  alloc_local_data_in = PNX(local_size_internal)(N, n, no, comm_cart, ths->trafo_flag, ths->pnfft_flags,
+  /* alloc_local_data_in is given in units of complex for both c2r and c2c */
+  alloc_local_in = PNX(local_size_internal)(N, n, no, comm_cart, ths->trafo_flag, ths->pnfft_flags,
       ths->local_N, ths->local_N_start, ths->local_no, ths->local_no_start);
 
-  if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-    alloc_local_gc = PX(local_size_many_gc)(3, ths->local_no, ths->local_no_start,
-        2 * alloc_local_data_in, howmany, gcells_below, gcells_above,
-        local_ngc, local_gc_start);
-  else
-    alloc_local_gc = 2 * PX(local_size_many_gc)(3, ths->local_no, ths->local_no_start,
-        alloc_local_data_in, howmany, gcells_below, gcells_above,
-        local_ngc, local_gc_start);
+  /* alloc_local is given in units of complex for c2c and in units of real for c2r */
+  alloc_local_gc = PX(local_size_many_gc)(3, ths->local_no, ths->local_no_start,
+      howmany, gcells_below, gcells_above,
+      local_ngc, local_gc_start);
+
+  /* convert into units of real */
+  alloc_local_in *= 2;
+  if(ths->trafo_flag & PNFFTI_TRAFO_C2C)
+    alloc_local_gc *= 2;
+
+  /* ensure output array to be large enough to hold FFT and ghost cells */
+  alloc_local_out = (alloc_local_gc > alloc_local_in) ? alloc_local_gc : alloc_local_in;
 
   ths->local_N_total  = PNX(prod_INT)(d, ths->local_N);
   ths->local_no_total = PNX(prod_INT)(d, ths->local_no);
@@ -777,16 +782,16 @@ PNX(plan) PNX(init_internal)(
 
   /* init PFFT all the time (do not use the PNFFT_INIT_FFT flag anymore since
    * the init of parallel FFT is far too complicated for any user) */
-  ths->g2 = (alloc_local_gc) ? (R*) PNX(malloc)(sizeof(R) * (size_t) alloc_local_gc) : NULL;
+  ths->g2 = (alloc_local_out) ? PNX(alloc_real)(alloc_local_out) : NULL;
   if(pnfft_flags & PNFFT_FFT_IN_PLACE)
     ths->g1 = ths->g2;
   else
-    ths->g1 = (alloc_local_data_in) ? (R*) PNX(malloc)(sizeof(R) * 2 * (size_t) alloc_local_data_in) : NULL;
+    ths->g1 = (alloc_local_in) ? PNX(alloc_real)(alloc_local_in) : NULL;
 
   /* For derivative in Fourier space we need an extra buffer
    * (since we need to scale the output of the forward FFT with three different factors) */
   if(ths->pnfft_flags & PNFFT_GRAD_IK)
-    ths->g1_buffer = (ths->local_N_total) ? (R*) PNX(malloc)(sizeof(R) * 2 * (size_t) ths->local_N_total) : NULL;
+    ths->g1_buffer = (ths->local_N_total) ? PNX(alloc_real)(2 * ths->local_N_total) : NULL;
   else
     ths->g1_buffer = NULL;
 
