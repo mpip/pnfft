@@ -408,30 +408,24 @@ AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)
 AC_ARG_ENABLE([doc],
  [AS_HELP_STRING([--disable-doc],[disable build of documents (PDF manual etc.)])],,
  [enable_doc=yes])
-
-if test "x$enable_doc" != xno -a ! -d "$srcdir/doc"; then
-  AC_MSG_WARN([disabling doc as it is not present in source tree])
-  enable_doc=no
-fi
+AM_CONDITIONAL(ENABLE_DOC,[test "x$enable_doc" != xno])
 
 if test "x$enable_doc" != xno ; then
   AC_PATH_PROG(PDFLATEX,pdflatex,no)
   AC_PATH_PROG(MAKEINDEX,makeindex,no)
   AC_PATH_PROG(BIBTEX,bibtex,no)
+  AC_CONFIG_LINKS([doc/latex-manual.sh:doc/latex-manual.sh])
 else
-  AC_MSG_NOTICE([disable build of documents])
+  AC_MSG_NOTICE([disable build of user manual])
 fi
 
-AM_CONDITIONAL(ENABLE_DOC,[test "x$enable_doc" != xno])
 AM_CONDITIONAL(HAVE_LATEX,
 	[test "x$PDFLATEX" != xno && 
 	test "x$MAKEINDEX" != xno && 
 	test "x$BIBTEX" != xno])
 
-if test "x$enable_doc" != xno ; then
-  AC_CONFIG_FILES([doc/Makefile doc/latexinc.sh])
-  AC_CONFIG_LINKS([doc/latex-manual.sh:doc/latex-manual.sh])
-fi
+# config doc/latexinc.sh also for --disable-doc to ensure proper make dist 
+AC_CONFIG_FILES([doc/latexinc.sh])
 
 ################################################################################
 # create output files
@@ -461,7 +455,7 @@ AC_CONFIG_HEADERS([fconfig.h],
 AC_CONFIG_LINKS([tests/plot_m_vs_error.py:tests/plot_m_vs_error.py])
 
 # The output files to be generated
-AC_CONFIG_FILES(Makefile \
+AC_CONFIG_FILES([Makefile \
                 pnfft.pc \
                 api/pnfft.f03 \
                 api/pnfftl.f03 \
@@ -469,7 +463,8 @@ AC_CONFIG_FILES(Makefile \
 		util/Makefile \
 		api/Makefile \
 		tests/Makefile \
-		tests/f03/Makefile)
+		tests/f03/Makefile \
+		doc/Makefile])
 
 AC_CONFIG_LINKS([tests/build_checks.sh:tests/build_checks.sh
                  tests/run_checks.sh:tests/run_checks.sh])
