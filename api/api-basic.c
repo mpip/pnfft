@@ -215,7 +215,7 @@ void PNX(trafo)(
   PNX(trafo_D)(ths);
   ths->timer_trafo[PNFFT_TIMER_MATRIX_D] += MPI_Wtime();
  
-  if(ths->pnfft_flags & PNFFT_GRAD_IK){
+  if((ths->pnfft_flags & PNFFT_GRAD_IK) && (ths->compute_flags & PNFFT_COMPUTE_GRAD_F) ){
     grad_ik_complex_input(ths);
   } else {
     /* multiplication with matrix F */
