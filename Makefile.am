@@ -15,11 +15,7 @@ SUBDIRS = kernel util api .
 
 # Tests work with double precision only.
 if ENABLE_TESTS
-if ! SINGLE
-if ! LDOUBLE
 SUBDIRS += tests
-endif
-endif
 endif
 
 if ENABLE_DOC

@@ -37,8 +37,8 @@ int main(int argc, char **argv){
   N[0] = N[1] = N[2] = 16;
   n[0] = n[1] = n[2] = 0;
   local_M = 0;
-  m = 6;
-  window = 4;
+  m = 18;
+  window = 0;
   x_max[0] = x_max[1] = x_max[2] = 0.5;
   np[0]=2; np[1]=2; np[2]=2;
   
@@ -54,8 +54,8 @@ int main(int argc, char **argv){
     case 0: window_flag = PNFFT_WINDOW_GAUSSIAN; break;
     case 1: window_flag = PNFFT_WINDOW_BSPLINE; break;
     case 2: window_flag = PNFFT_WINDOW_SINC_POWER; break;
-    case 3: window_flag = PNFFT_WINDOW_BESSEL_I0; break;
-    default: window_flag = PNFFT_WINDOW_KAISER_BESSEL;
+    case 4: window_flag = PNFFT_WINDOW_KAISER_BESSEL; break;
+    default: window_flag = PNFFT_WINDOW_GAUSSIAN; window = 0;
   }
 
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
@@ -70,7 +70,7 @@ int main(int argc, char **argv){
     case 1: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BSPLINE) "); break;
     case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_SINC_POWER) "); break;
     case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BESSEL_I0) "); break;
-    default: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
+    case 4: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_window *),\n");
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);

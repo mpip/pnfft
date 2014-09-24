@@ -71,7 +71,7 @@ typedef ptrdiff_t INT;
 #define CONCAT(prefix, name) prefix ## name
 
 /* define function names according to used precision */
-#if defined(PNFFT_SINGLE)
+#if defined(PNFFT_PREC_SINGLE)
   typedef float R;
   typedef pnfftf_complex C;
 #  define PNFFT_MPI_REAL_TYPE MPI_FLOAT
@@ -80,7 +80,7 @@ typedef ptrdiff_t INT;
 #  define X(name)  FFTW_MANGLE_FLOAT(name)
 #  define PNFFT_EPSILON LDBL_EPSILON//4.0E-31L
 #  define PNFFT_MATH(name) CONCAT(name, f)
-#elif defined(PNFFT_LDOUBLE)
+#elif defined(PNFFT_PREC_LDOUBLE)
   typedef long double R;
   typedef pnfftl_complex C;
 #  define PNFFT_MPI_REAL_TYPE MPI_LONG_DOUBLE
@@ -124,7 +124,7 @@ typedef ptrdiff_t INT;
 #define XM(name)  X(CONCAT(mpi_, name))
 
 /* Need these defines for compilation of bessel_i0.c, sinc.c (copied from NFFT) */
-#ifdef PNFFT_LDOUBLE
+#ifdef PNFFT_PREC_LDOUBLE
 #  define K(x) ((R) x##L)
 #else
 #  define K(x) ((R) x)

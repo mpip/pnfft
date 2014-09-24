@@ -1,9 +1,11 @@
 # Subdirectories
 SUBDIRS = 
 
-# Enable Fortran subdirectory only on request.
+# Enable Fortran subdirectory only on request and only for double precision.
 if ENABLE_FORTRAN
+if DOUBLE
 SUBDIRS += f03
+endif
 endif
 
 # Directory of ipnfft.h
@@ -21,11 +23,22 @@ EXTRA_DIST = \
 	run_checks.sh
 
 # These programs are built by 'make check' and may be tested afterwards.
-check_PROGRAMS = \
-	simple_test \
-	simple_test_c2r
+check_PROGRAMS =
 
+if SINGLE
 check_PROGRAMS += \
+	check_trafo_vs_ndft_float
+endif
+
+if LDOUBLE
+check_PROGRAMS += \
+	check_trafo_vs_ndft_ldouble
+endif
+
+if DOUBLE
+check_PROGRAMS += \
+	simple_test \
+	simple_test_c2r \
 	check_trafo check_trafo_transposed \
 	check_trafo_grad check_trafo_transposed_grad \
 	check_trafo_2d check_trafo_transposed_2d \
@@ -38,4 +51,5 @@ check_PROGRAMS += \
 	check_trafo_vs_ndft_transposed_2d \
 	simple_test_c2r_c2c_compare_real simple_test_c2r_c2c_compare_complex \
 	simple_test_c2r_c2c_compare_grad simple_test_c2r_c2c_compare_timer
+endif
 

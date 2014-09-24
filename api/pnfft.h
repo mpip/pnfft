@@ -335,6 +335,7 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_PTRDIFF_T      ((PFFT_PTRDIFF_T))
 #define PNFFT_FLOAT          ((PFFT_FLOAT))
 #define PNFFT_DOUBLE         ((PFFT_DOUBLE))
+#define PNFFT_LDOUBLE        ((PFFT_LDOUBLE))
 #define PNFFT_UNSIGNED       ((PFFT_UNSIGNED))
 
 /* Make length of Timer public available */

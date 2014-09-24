@@ -24,7 +24,7 @@
 #include "bessel_i0.h"
 #include "gsl/gsl_sf_bessel.h"
 
-#if defined(PNFFT_LDOUBLE)
+#if defined(PNFFT_PREC_LDOUBLE)
   #if LDBL_MANT_DIG > 64
     /* long double 128 bit wide */
     static const R P1[] =
@@ -184,7 +184,7 @@
   #else
     #error Unsupported size of long double
   #endif
-#elif defined(PNFFT_SINGLE)
+#elif defined(PNFFT_PREC_SINGLE)
   /* float */
   static const R P1[] =
   {

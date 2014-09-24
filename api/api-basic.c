@@ -571,7 +571,11 @@ static void print_complex_vector(
   for(INT l=0; l<N; l++){
     if(l%4 == 0)
       printf("\n%4td.", l/4);
+#ifdef PNFFT_PREC_LDOUBLE
+    printf(" %.2Le+%.2Lei,", data[2*l], data[2*l+1]);
+#else
     printf(" %.2e+%.2ei,", data[2*l], data[2*l+1]);
+#endif
   }
   printf("\n");
 }
@@ -624,7 +628,11 @@ void PNX(vpr_real)(
       for(INT l=0; l<N; l++){
         if(l%8 == 0)
           printf("\n%4td.", l/8);
+#ifdef PNFFT_PREC_LDOUBLE
+        printf(" %Le,", data[l]);
+#else
         printf(" %e,", data[l]);
+#endif
       }
       printf("\n");
       fflush(stdout);
