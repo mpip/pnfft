@@ -3,6 +3,10 @@
 # Script to generate Fortran 2003 interface declarations for FFTW from
 # the fftw3.h header file.
 
+# Use this script in the following way:
+# ./f03-api.sh d f > pnfft.f03.in
+# ./f03-api.sh l > pnfftl.f03.in
+
 # This is designed so that the Fortran caller can do:
 #   use, intrinsic :: iso_c_binding
 #   implicit none
@@ -10,10 +14,19 @@
 # and then call the C FFTW functions directly, with type checking.
 
 
-# pnfft.h depends on fftw3-mpi.h, fftw3.h and pfft.h
+# pnfft.h depends on pfft.h, fftw3-mpi.h, and fftw3.h.
 # set these paths such that the preprocessor can find the required headers
-PFFT_INC=$HOME/local/pfft-1.0.6-alpha/include
+PFFT_INC=$HOME/local/pfft-1.0.7-alpha/include
 FFTW_INC=$HOME/local/fftw-3.3.3/include
+
+if [ ! -e $FFTW_INC/fftw3-mpi.h ]; then
+  echo "Error: Correct include path to fftw3-mpi.h needed."
+  exit 1
+fi
+if [ ! -e $PFFT_INC/pfft.h ]; then
+  echo "Error: Correct include path to pfft.h needed."
+  exit 1
+fi
 
 echo "! Generated automatically.  DO NOT EDIT!"
 

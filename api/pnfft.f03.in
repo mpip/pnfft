@@ -70,6 +70,7 @@
   integer(C_INT), parameter :: PNFFT_PTRDIFF_T = PFFT_PTRDIFF_T
   integer(C_INT), parameter :: PNFFT_FLOAT = PFFT_FLOAT
   integer(C_INT), parameter :: PNFFT_DOUBLE = PFFT_DOUBLE
+  integer(C_INT), parameter :: PNFFT_LDOUBLE = PFFT_LDOUBLE
   integer(C_INT), parameter :: PNFFT_UNSIGNED = PFFT_UNSIGNED
 
 
@@ -102,6 +103,18 @@
       real(C_DOUBLE), dimension(*), intent(out) :: upper_border
     end subroutine pnfft_local_size_3d
     
+    subroutine pnfft_local_size_3d_c2r(N,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
+               bind(C, name='pnfft_local_size_3d_c2r_f03')
+      import
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(@C_MPI_FINT@), value :: comm_cart
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      real(C_DOUBLE), dimension(*), intent(out) :: lower_border
+      real(C_DOUBLE), dimension(*), intent(out) :: upper_border
+    end subroutine pnfft_local_size_3d_c2r
+    
     subroutine pnfft_local_size_adv(d,N,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
                bind(C, name='pnfft_local_size_adv_f03')
       import
@@ -114,6 +127,19 @@
       real(C_DOUBLE), dimension(*), intent(out) :: lower_border
       real(C_DOUBLE), dimension(*), intent(out) :: upper_border
     end subroutine pnfft_local_size_adv
+    
+    subroutine pnfft_local_size_adv_c2r(d,N,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
+               bind(C, name='pnfft_local_size_adv_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(@C_MPI_FINT@), value :: comm_cart
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      real(C_DOUBLE), dimension(*), intent(out) :: lower_border
+      real(C_DOUBLE), dimension(*), intent(out) :: upper_border
+    end subroutine pnfft_local_size_adv_c2r
     
     subroutine pnfft_local_size_guru(d,N,Nos,x_max,m,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
                bind(C, name='pnfft_local_size_guru_f03')
@@ -131,12 +157,35 @@
       real(C_DOUBLE), dimension(*), intent(out) :: upper_border
     end subroutine pnfft_local_size_guru
     
+    subroutine pnfft_local_size_guru_c2r(d,N,Nos,x_max,m,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
+               bind(C, name='pnfft_local_size_guru_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), dimension(*), intent(in) :: Nos
+      real(C_DOUBLE), dimension(*), intent(in) :: x_max
+      integer(C_INT), value :: m
+      integer(@C_MPI_FINT@), value :: comm_cart
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      real(C_DOUBLE), dimension(*), intent(out) :: lower_border
+      real(C_DOUBLE), dimension(*), intent(out) :: upper_border
+    end subroutine pnfft_local_size_guru_c2r
+    
     type(C_PTR) function pnfft_init_3d(N,local_M,comm_cart) bind(C, name='pnfft_init_3d_f03')
       import
       integer(C_INTPTR_T), dimension(*), intent(in) :: N
       integer(C_INTPTR_T), value :: local_M
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfft_init_3d
+    
+    type(C_PTR) function pnfft_init_3d_c2r(N,local_M,comm_cart) bind(C, name='pnfft_init_3d_c2r_f03')
+      import
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), value :: local_M
+      integer(@C_MPI_FINT@), value :: comm_cart
+    end function pnfft_init_3d_c2r
     
     type(C_PTR) function pnfft_init_adv(d,N,local_M,pnfft_flags,fftw_flags,comm_cart) bind(C, name='pnfft_init_adv_f03')
       import
@@ -147,6 +196,16 @@
       integer(C_INT), value :: fftw_flags
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfft_init_adv
+    
+    type(C_PTR) function pnfft_init_adv_c2r(d,N,local_M,pnfft_flags,fftw_flags,comm_cart) bind(C, name='pnfft_init_adv_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), value :: local_M
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INT), value :: fftw_flags
+      integer(@C_MPI_FINT@), value :: comm_cart
+    end function pnfft_init_adv_c2r
     
     type(C_PTR) function pnfft_init_guru(d,N,Nos,x_max,local_M,m,pnfft_flags,fftw_flags,comm_cart) &
                          bind(C, name='pnfft_init_guru_f03')
@@ -161,6 +220,20 @@
       integer(C_INT), value :: fftw_flags
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfft_init_guru
+    
+    type(C_PTR) function pnfft_init_guru_c2r(d,N,Nos,x_max,local_M,m,pnfft_flags,fftw_flags,comm_cart) &
+                         bind(C, name='pnfft_init_guru_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), dimension(*), intent(in) :: Nos
+      real(C_DOUBLE), dimension(*), intent(in) :: x_max
+      integer(C_INTPTR_T), value :: local_M
+      integer(C_INT), value :: m
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INT), value :: fftw_flags
+      integer(@C_MPI_FINT@), value :: comm_cart
+    end function pnfft_init_guru_c2r
     
     subroutine pnfft_init_nodes(ths,local_M,pnfft_flags,pnfft_finalize_flags) bind(C, name='pnfft_init_nodes')
       import
@@ -193,11 +266,37 @@
       type(C_PTR), value :: ths
     end subroutine pnfft_set_grad_f
     
+    subroutine pnfft_set_f_hat_real(f_hat,ths) bind(C, name='pnfft_set_f_hat_real')
+      import
+      real(C_DOUBLE), dimension(*), intent(out) :: f_hat
+      type(C_PTR), value :: ths
+    end subroutine pnfft_set_f_hat_real
+    
+    subroutine pnfft_set_f_real(f,ths) bind(C, name='pnfft_set_f_real')
+      import
+      real(C_DOUBLE), dimension(*), intent(out) :: f
+      type(C_PTR), value :: ths
+    end subroutine pnfft_set_f_real
+    
+    subroutine pnfft_set_grad_f_real(grad_f,ths) bind(C, name='pnfft_set_grad_f_real')
+      import
+      real(C_DOUBLE), dimension(*), intent(out) :: grad_f
+      type(C_PTR), value :: ths
+    end subroutine pnfft_set_grad_f_real
+    
     subroutine pnfft_set_x(x,ths) bind(C, name='pnfft_set_x')
       import
       real(C_DOUBLE), dimension(*), intent(out) :: x
       type(C_PTR), value :: ths
     end subroutine pnfft_set_x
+    
+    subroutine pnfft_set_b(b0,b1,b2,ths) bind(C, name='pnfft_set_b')
+      import
+      real(C_DOUBLE), value :: b0
+      real(C_DOUBLE), value :: b1
+      real(C_DOUBLE), value :: b2
+      type(C_PTR), value :: ths
+    end subroutine pnfft_set_b
     
     type(C_PTR) function pnfft_get_f_hat(ths) bind(C, name='pnfft_get_f_hat')
       import
@@ -213,6 +312,21 @@
       import
       type(C_PTR), value :: ths
     end function pnfft_get_grad_f
+    
+    type(C_PTR) function pnfft_get_f_hat_real(ths) bind(C, name='pnfft_get_f_hat_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfft_get_f_hat_real
+    
+    type(C_PTR) function pnfft_get_f_real(ths) bind(C, name='pnfft_get_f_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfft_get_f_real
+    
+    type(C_PTR) function pnfft_get_grad_f_real(ths) bind(C, name='pnfft_get_grad_f_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfft_get_grad_f_real
     
     type(C_PTR) function pnfft_get_x(ths) bind(C, name='pnfft_get_x')
       import
@@ -257,11 +371,29 @@
       type(C_PTR), value :: ths
     end function pnfft_get_pfft_flags
     
+    subroutine pnfft_get_b(ths,b0,b1,b2) bind(C, name='pnfft_get_b')
+      import
+      type(C_PTR), value :: ths
+      real(C_DOUBLE), dimension(*), intent(out) :: b0
+      real(C_DOUBLE), dimension(*), intent(out) :: b1
+      real(C_DOUBLE), dimension(*), intent(out) :: b2
+    end subroutine pnfft_get_b
+    
     subroutine pnfft_finalize(ths,pnfft_finalize_flags) bind(C, name='pnfft_finalize')
       import
       type(C_PTR), value :: ths
       integer(C_INT), value :: pnfft_finalize_flags
     end subroutine pnfft_finalize
+    
+    subroutine pnfft_direct_trafo(ths) bind(C, name='pnfft_direct_trafo')
+      import
+      type(C_PTR), value :: ths
+    end subroutine pnfft_direct_trafo
+    
+    subroutine pnfft_direct_adj(ths) bind(C, name='pnfft_direct_adj')
+      import
+      type(C_PTR), value :: ths
+    end subroutine pnfft_direct_adj
     
     subroutine pnfft_trafo(ths) bind(C, name='pnfft_trafo')
       import
@@ -387,6 +519,16 @@
       integer(@C_MPI_FINT@), value :: comm
     end subroutine pnfft_apr_complex_3d
     
+    subroutine pnfft_apr_real_3d(data,local_N,local_N_start,pnfft_flags,name,comm) bind(C, name='pnfft_apr_real_3d_f03')
+      import
+      real(C_DOUBLE), dimension(*), intent(out) :: data
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      integer(C_INT), value :: pnfft_flags
+      character(C_CHAR), dimension(*), intent(in) :: name
+      integer(@C_MPI_FINT@), value :: comm
+    end subroutine pnfft_apr_real_3d
+    
     type(C_PTR) function pnfft_get_timer_trafo(ths) bind(C, name='pnfft_get_timer_trafo')
       import
       type(C_PTR), value :: ths
@@ -487,6 +629,18 @@
       real(C_FLOAT), dimension(*), intent(out) :: upper_border
     end subroutine pnfftf_local_size_3d
     
+    subroutine pnfftf_local_size_3d_c2r(N,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
+               bind(C, name='pnfftf_local_size_3d_c2r_f03')
+      import
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(@C_MPI_FINT@), value :: comm_cart
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      real(C_FLOAT), dimension(*), intent(out) :: lower_border
+      real(C_FLOAT), dimension(*), intent(out) :: upper_border
+    end subroutine pnfftf_local_size_3d_c2r
+    
     subroutine pnfftf_local_size_adv(d,N,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
                bind(C, name='pnfftf_local_size_adv_f03')
       import
@@ -499,6 +653,19 @@
       real(C_FLOAT), dimension(*), intent(out) :: lower_border
       real(C_FLOAT), dimension(*), intent(out) :: upper_border
     end subroutine pnfftf_local_size_adv
+    
+    subroutine pnfftf_local_size_adv_c2r(d,N,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
+               bind(C, name='pnfftf_local_size_adv_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(@C_MPI_FINT@), value :: comm_cart
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      real(C_FLOAT), dimension(*), intent(out) :: lower_border
+      real(C_FLOAT), dimension(*), intent(out) :: upper_border
+    end subroutine pnfftf_local_size_adv_c2r
     
     subroutine pnfftf_local_size_guru(d,N,Nos,x_max,m,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
                bind(C, name='pnfftf_local_size_guru_f03')
@@ -516,12 +683,35 @@
       real(C_FLOAT), dimension(*), intent(out) :: upper_border
     end subroutine pnfftf_local_size_guru
     
+    subroutine pnfftf_local_size_guru_c2r(d,N,Nos,x_max,m,comm_cart,pnfft_flags,local_N,local_N_start,lower_border,upper_border) &
+               bind(C, name='pnfftf_local_size_guru_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), dimension(*), intent(in) :: Nos
+      real(C_FLOAT), dimension(*), intent(in) :: x_max
+      integer(C_INT), value :: m
+      integer(@C_MPI_FINT@), value :: comm_cart
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      real(C_FLOAT), dimension(*), intent(out) :: lower_border
+      real(C_FLOAT), dimension(*), intent(out) :: upper_border
+    end subroutine pnfftf_local_size_guru_c2r
+    
     type(C_PTR) function pnfftf_init_3d(N,local_M,comm_cart) bind(C, name='pnfftf_init_3d_f03')
       import
       integer(C_INTPTR_T), dimension(*), intent(in) :: N
       integer(C_INTPTR_T), value :: local_M
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfftf_init_3d
+    
+    type(C_PTR) function pnfftf_init_3d_c2r(N,local_M,comm_cart) bind(C, name='pnfftf_init_3d_c2r_f03')
+      import
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), value :: local_M
+      integer(@C_MPI_FINT@), value :: comm_cart
+    end function pnfftf_init_3d_c2r
     
     type(C_PTR) function pnfftf_init_adv(d,N,local_M,pnfft_flags,fftw_flags,comm_cart) bind(C, name='pnfftf_init_adv_f03')
       import
@@ -532,6 +722,16 @@
       integer(C_INT), value :: fftw_flags
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfftf_init_adv
+    
+    type(C_PTR) function pnfftf_init_adv_c2r(d,N,local_M,pnfft_flags,fftw_flags,comm_cart) bind(C, name='pnfftf_init_adv_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), value :: local_M
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INT), value :: fftw_flags
+      integer(@C_MPI_FINT@), value :: comm_cart
+    end function pnfftf_init_adv_c2r
     
     type(C_PTR) function pnfftf_init_guru(d,N,Nos,x_max,local_M,m,pnfft_flags,fftw_flags,comm_cart) &
                          bind(C, name='pnfftf_init_guru_f03')
@@ -546,6 +746,20 @@
       integer(C_INT), value :: fftw_flags
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfftf_init_guru
+    
+    type(C_PTR) function pnfftf_init_guru_c2r(d,N,Nos,x_max,local_M,m,pnfft_flags,fftw_flags,comm_cart) &
+                         bind(C, name='pnfftf_init_guru_c2r_f03')
+      import
+      integer(C_INT), value :: d
+      integer(C_INTPTR_T), dimension(*), intent(in) :: N
+      integer(C_INTPTR_T), dimension(*), intent(in) :: Nos
+      real(C_FLOAT), dimension(*), intent(in) :: x_max
+      integer(C_INTPTR_T), value :: local_M
+      integer(C_INT), value :: m
+      integer(C_INT), value :: pnfft_flags
+      integer(C_INT), value :: fftw_flags
+      integer(@C_MPI_FINT@), value :: comm_cart
+    end function pnfftf_init_guru_c2r
     
     subroutine pnfftf_init_nodes(ths,local_M,pnfft_flags,pnfft_finalize_flags) bind(C, name='pnfftf_init_nodes')
       import
@@ -578,11 +792,37 @@
       type(C_PTR), value :: ths
     end subroutine pnfftf_set_grad_f
     
+    subroutine pnfftf_set_f_hat_real(f_hat,ths) bind(C, name='pnfftf_set_f_hat_real')
+      import
+      real(C_FLOAT), dimension(*), intent(out) :: f_hat
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_set_f_hat_real
+    
+    subroutine pnfftf_set_f_real(f,ths) bind(C, name='pnfftf_set_f_real')
+      import
+      real(C_FLOAT), dimension(*), intent(out) :: f
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_set_f_real
+    
+    subroutine pnfftf_set_grad_f_real(grad_f,ths) bind(C, name='pnfftf_set_grad_f_real')
+      import
+      real(C_FLOAT), dimension(*), intent(out) :: grad_f
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_set_grad_f_real
+    
     subroutine pnfftf_set_x(x,ths) bind(C, name='pnfftf_set_x')
       import
       real(C_FLOAT), dimension(*), intent(out) :: x
       type(C_PTR), value :: ths
     end subroutine pnfftf_set_x
+    
+    subroutine pnfftf_set_b(b0,b1,b2,ths) bind(C, name='pnfftf_set_b')
+      import
+      real(C_FLOAT), value :: b0
+      real(C_FLOAT), value :: b1
+      real(C_FLOAT), value :: b2
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_set_b
     
     type(C_PTR) function pnfftf_get_f_hat(ths) bind(C, name='pnfftf_get_f_hat')
       import
@@ -598,6 +838,21 @@
       import
       type(C_PTR), value :: ths
     end function pnfftf_get_grad_f
+    
+    type(C_PTR) function pnfftf_get_f_hat_real(ths) bind(C, name='pnfftf_get_f_hat_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfftf_get_f_hat_real
+    
+    type(C_PTR) function pnfftf_get_f_real(ths) bind(C, name='pnfftf_get_f_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfftf_get_f_real
+    
+    type(C_PTR) function pnfftf_get_grad_f_real(ths) bind(C, name='pnfftf_get_grad_f_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfftf_get_grad_f_real
     
     type(C_PTR) function pnfftf_get_x(ths) bind(C, name='pnfftf_get_x')
       import
@@ -642,11 +897,29 @@
       type(C_PTR), value :: ths
     end function pnfftf_get_pfft_flags
     
+    subroutine pnfftf_get_b(ths,b0,b1,b2) bind(C, name='pnfftf_get_b')
+      import
+      type(C_PTR), value :: ths
+      real(C_FLOAT), dimension(*), intent(out) :: b0
+      real(C_FLOAT), dimension(*), intent(out) :: b1
+      real(C_FLOAT), dimension(*), intent(out) :: b2
+    end subroutine pnfftf_get_b
+    
     subroutine pnfftf_finalize(ths,pnfft_finalize_flags) bind(C, name='pnfftf_finalize')
       import
       type(C_PTR), value :: ths
       integer(C_INT), value :: pnfft_finalize_flags
     end subroutine pnfftf_finalize
+    
+    subroutine pnfftf_direct_trafo(ths) bind(C, name='pnfftf_direct_trafo')
+      import
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_direct_trafo
+    
+    subroutine pnfftf_direct_adj(ths) bind(C, name='pnfftf_direct_adj')
+      import
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_direct_adj
     
     subroutine pnfftf_trafo(ths) bind(C, name='pnfftf_trafo')
       import
@@ -771,6 +1044,16 @@
       character(C_CHAR), dimension(*), intent(in) :: name
       integer(@C_MPI_FINT@), value :: comm
     end subroutine pnfftf_apr_complex_3d
+    
+    subroutine pnfftf_apr_real_3d(data,local_N,local_N_start,pnfft_flags,name,comm) bind(C, name='pnfftf_apr_real_3d_f03')
+      import
+      real(C_FLOAT), dimension(*), intent(out) :: data
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N
+      integer(C_INTPTR_T), dimension(*), intent(out) :: local_N_start
+      integer(C_INT), value :: pnfft_flags
+      character(C_CHAR), dimension(*), intent(in) :: name
+      integer(@C_MPI_FINT@), value :: comm
+    end subroutine pnfftf_apr_real_3d
     
     type(C_PTR) function pnfftf_get_timer_trafo(ths) bind(C, name='pnfftf_get_timer_trafo')
       import
