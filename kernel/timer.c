@@ -247,15 +247,15 @@ static void write_run_specific_infos(
   MPI_Comm_size(comm, &size);
   
   if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
-    PX(fprintf)(comm, file, "\n%% pnfft_flags == PNFFT_WINDOW_GAUSSIAN");
+    PX(fprintf)(comm, file, "%% pnfft_flags == PNFFT_WINDOW_GAUSSIAN");
   else if(ths->pnfft_flags & PNFFT_WINDOW_BSPLINE)
-    PX(fprintf)(comm, file, "\n%% pnfft_flags == PNFFT_WINDOW_BSPLINE");
+    PX(fprintf)(comm, file, "%% pnfft_flags == PNFFT_WINDOW_BSPLINE");
   else if(ths->pnfft_flags & PNFFT_WINDOW_SINC_POWER)
-    PX(fprintf)(comm, file, "\n%% pnfft_flags == PNFFT_WINDOW_SINC_POWER");
+    PX(fprintf)(comm, file, "%% pnfft_flags == PNFFT_WINDOW_SINC_POWER");
   else if(ths->pnfft_flags & PNFFT_WINDOW_BESSEL_I0)
-    PX(fprintf)(comm, file, "\n%% pnfft_flags == PNFFT_WINDOW_BESSEL_I0");
+    PX(fprintf)(comm, file, "%% pnfft_flags == PNFFT_WINDOW_BESSEL_I0");
   else
-    PX(fprintf)(comm, file, "\n%% pnfft_flags == PNFFT_WINDOW_KAISER_BESSEL");
+    PX(fprintf)(comm, file, "%% pnfft_flags == PNFFT_WINDOW_KAISER_BESSEL");
 
   if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT)
     PX(fprintf)(comm, file, " | PNFFT_PRE_PHI_HAT");
@@ -309,7 +309,7 @@ static void write_run_specific_infos(
     PX(fprintf)(comm, file, " | PNFFT_MALLOC_GRAD_F");
   PX(fprintf)(comm, file, "\n");
 
-  PX(fprintf)(comm, file, "\nindex(%d) = %d;  ", idx, idx);
+  PX(fprintf)(comm, file, "index(%d) = %d;  ", idx, idx);
   PX(fprintf)(comm, file, "procs(%d) = %d;  ", idx, size);
   PX(fprintf)(comm, file, "np_pnfft(%d, 1:3) = [%d %d %d];  ", idx, ths->np[0], ths->np[1], ths->np[2]);
   PX(fprintf)(comm, file, "N_pnfft(%d, 1:%d) = [", idx, ths->d);
