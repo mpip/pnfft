@@ -401,12 +401,6 @@ AC_SUBST(C_MPI_FINT)
 # We need the math library.
 AC_SEARCH_LIBS([log], [m])
 
-# pass location of FFTW to make distcheck
-DISTCHECK_CONFIGURE_FLAGS="CPPFLAGS=\"$CPPFLAGS\" LDFLAGS=\"$LDFLAGS\""
-
-AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)
-
-
 
 ################################################################################
 # DOCUMENTATION

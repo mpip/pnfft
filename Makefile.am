@@ -10,7 +10,12 @@ libtool: $(LIBTOOL_DEPS)
 # Let aclocal find the add-on macros.
 ACLOCAL_AMFLAGS = -I m4
 
-# Subdirectories
+# pass location of FFTW and PFFT to make distcheck
+AM_DISTCHECK_CONFIGURE_FLAGS = \
+  "CPPFLAGS=@CPPFLAGS@" \
+  "LDFLAGS=@LDFLAGS@"
+
+# Traverse these subdirectories, the current one first (for config.h).
 SUBDIRS = kernel util api .
 
 # Tests work with double precision only.
