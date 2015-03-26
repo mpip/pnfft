@@ -140,7 +140,7 @@ typedef ptrdiff_t INT;
 #define PNFFT_PRINT_TIMER_ADV      (1U<<1)
 
 
-struct PNX(plan_s){                                                                      
+typedef struct PNX(plan_s){                                                                      
   INT N_total;                /**< Total number of Fourier coefficients            */
   C *f_hat;                   /**< Vector of Fourier coefficients                  */
   R *f;                       /**< Vector of samples                               */
@@ -209,12 +209,7 @@ struct PNX(plan_s){
                                                                                      
   double* timer_trafo;        /**< Saves time measurements during PNFFT            */
   double* timer_adj;          /**< Saves time measurements during adjoint PNFFT    */
-};
-typedef struct PNX(plan_s) plan_s;
-
-#ifndef PNFFT_H
-typedef struct PNX(plan_s) *PNX(plan);
-#endif /* !PNFFT_H */
+} plan_s;
 
 #if PNFFT_ENABLE_DEBUG
 void PNX(debug_sum_print_strides)(
