@@ -139,6 +139,20 @@ typedef ptrdiff_t INT;
 #define PNFFT_PRINT_TIMER_BASIC    (1U<<0)
 #define PNFFT_PRINT_TIMER_ADV      (1U<<1)
 
+#ifdef PNFFT_ENABLE_SYNCED_TIMING
+#  define PNFFT_START_TIMING(comm, timer) \
+     MPI_Barrier(comm); \
+     timer -= MPI_Wtime();
+#else
+#  define PNFFT_START_TIMING(comm, timer) \
+     timer -= MPI_Wtime();
+#endif
+#define PNFFT_FINISH_TIMING(timer) \
+   timer += MPI_Wtime();
+
+#ifndef PNFFT_H
+typedef struct PNX(plan_s) *PNX(plan);
+#endif /* !PNFFT_H */
 
 typedef struct PNX(plan_s){                                                                      
   INT N_total;                /**< Total number of Fourier coefficients            */

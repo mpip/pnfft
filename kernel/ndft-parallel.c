@@ -2059,8 +2059,8 @@ void PNX(trafo_B_grad_ik)(
       local_no, local_no_start);
 
   /* perform fftshift */
-  ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT] -= MPI_Wtime();
-  ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT] += MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT]);
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT]);
 
   get_size_gcells(ths->m, ths->cutoff, ths->pnfft_flags,
       gcells_below, gcells_above);
@@ -2068,21 +2068,21 @@ void PNX(trafo_B_grad_ik)(
       local_ngc);
 
   /* send ghost cells in ring */
-  ths->timer_trafo[PNFFT_TIMER_GCELLS] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_GCELLS]);
   PX(exchange)(ths->gcplan);
-  ths->timer_trafo[PNFFT_TIMER_GCELLS] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_GCELLS]);
 
   /* sort indices for better cache handling */
   if(ths->pnfft_flags & PNFFT_SORT_NODES){
-    ths->timer_trafo[PNFFT_TIMER_SORT_NODES] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_SORT_NODES]);
     sorted_index = (INT*) PNX(malloc)(sizeof(INT) * (size_t) 2*ths->local_M);
     sort_nodes_for_better_cache_handle(
         ths->d, ths->n, ths->m, ths->local_M, ths->x,
         sorted_index);
-    ths->timer_trafo[PNFFT_TIMER_SORT_NODES] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_SORT_NODES]);
   }
 
-  ths->timer_trafo[PNFFT_TIMER_LOOP_B] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
   if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   for(INT p=0; p<ths->local_M; p++){
@@ -2117,7 +2117,7 @@ void PNX(trafo_B_grad_ik)(
           (C*)f + ind);
   }
 
-  ths->timer_trafo[PNFFT_TIMER_LOOP_B] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
   
   if(sorted_index != NULL)
     PNX(free)(sorted_index);
@@ -2164,8 +2164,8 @@ void PNX(trafo_B_grad_ad)(
 #endif
 
   /* perform fftshift */
-  ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT] -= MPI_Wtime();
-  ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT] += MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT]);
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_SHIFT_INPUT]);
 
   get_size_gcells(ths->m, ths->cutoff, ths->pnfft_flags,
       gcells_below, gcells_above);
@@ -2179,9 +2179,9 @@ void PNX(trafo_B_grad_ad)(
 #endif
 
   /* send ghost cells in ring */
-  ths->timer_trafo[PNFFT_TIMER_GCELLS] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_GCELLS]);
   PX(exchange)(ths->gcplan);
-  ths->timer_trafo[PNFFT_TIMER_GCELLS] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_GCELLS]);
 
 #if PNFFT_ENABLE_DEBUG
   PNX(debug_sum_print)(ths->g2, PNX(prod_INT)(3, local_ngc),
@@ -2196,12 +2196,12 @@ void PNX(trafo_B_grad_ad)(
 
   /* sort indices for better cache handling */
   if(ths->pnfft_flags & PNFFT_SORT_NODES){
-    ths->timer_trafo[PNFFT_TIMER_SORT_NODES] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_SORT_NODES]);
     sorted_index = (INT*) PNX(malloc)(sizeof(INT) * (size_t) 2*ths->local_M);
     sort_nodes_for_better_cache_handle(
         ths->d, ths->n, ths->m, ths->local_M, ths->x,
         sorted_index);
-    ths->timer_trafo[PNFFT_TIMER_SORT_NODES] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_SORT_NODES]);
   }
 
 #if PNFFT_ENABLE_DEBUG
@@ -2214,7 +2214,7 @@ void PNX(trafo_B_grad_ad)(
   rsum = rsum_derive = 0.0;
 #endif
 
-  ths->timer_trafo[PNFFT_TIMER_LOOP_B] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
   if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
     if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F)
@@ -2406,7 +2406,7 @@ void PNX(trafo_B_grad_ad)(
     }
   }
 
-  ths->timer_trafo[PNFFT_TIMER_LOOP_B] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
 
 #if PNFFT_ENABLE_DEBUG
   MPI_Reduce(&rsum, &grsum, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -2480,12 +2480,12 @@ void PNX(adjoint_B)(
 
   /* sort indices for better cache handling */
   if(ths->pnfft_flags & PNFFT_SORT_NODES){
-    ths->timer_adj[PNFFT_TIMER_SORT_NODES] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_SORT_NODES]);
     sorted_index = (INT*) PNX(malloc)(sizeof(INT) * (size_t) 2*ths->local_M);
     sort_nodes_for_better_cache_handle(
         ths->d, ths->n, ths->m, ths->local_M, ths->x,
         sorted_index);
-    ths->timer_adj[PNFFT_TIMER_SORT_NODES] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_SORT_NODES]);
   }
   
 #if PNFFT_ENABLE_DEBUG
@@ -2497,7 +2497,7 @@ void PNX(adjoint_B)(
       "PNFFT^H: Sum of f");
 #endif
   
-  ths->timer_adj[PNFFT_TIMER_LOOP_B] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_LOOP_B]);
   if(interlaced){
     loop_over_particles_adj_interlaced_0(
         ths, local_no_start, local_ngc, gcells_below, sorted_index);
@@ -2507,7 +2507,7 @@ void PNX(adjoint_B)(
     loop_over_particles_adj(
         ths, local_no_start, local_ngc, gcells_below, sorted_index);
   }
-  ths->timer_adj[PNFFT_TIMER_LOOP_B] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_LOOP_B]);
 
 #if PNFFT_ENABLE_DEBUG
   PNX(debug_sum_print)(ths->g2, local_ngc_total,
@@ -2516,9 +2516,9 @@ void PNX(adjoint_B)(
 #endif  
 
   /* reduce ghost cells in ring */
-  ths->timer_adj[PNFFT_TIMER_GCELLS] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_GCELLS]);
   PX(reduce)(ths->gcplan);
-  ths->timer_adj[PNFFT_TIMER_GCELLS] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_GCELLS]);
 
 #if PNFFT_ENABLE_DEBUG
   PNX(debug_sum_print)(ths->g2, local_no[0]*local_no[1]*local_no[2],
@@ -2527,9 +2527,9 @@ void PNX(adjoint_B)(
 #endif
 
   /* perform fftshift */
-  ths->timer_adj[PNFFT_TIMER_SHIFT_INPUT] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_SHIFT_INPUT]);
 //   if(ths->pnfft_flags & PNFFT_SHIFTED_IN)
-  ths->timer_adj[PNFFT_TIMER_SHIFT_INPUT] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_SHIFT_INPUT]);
 
 #if PNFFT_ENABLE_DEBUG
   PNX(debug_sum_print)(ths->g2, local_no[0]*local_no[1]*local_no[2],

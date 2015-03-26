@@ -121,17 +121,17 @@ static void grad_ik_complex_input(
     )
 {
   /* duplicate g1 since we have to scale it several times for computing the gradient */
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_D] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
   for(INT k=0; k<ths->local_N_total; k++)
     ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_D] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
 
   /* calculate potentials */
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_F] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
   PNX(trafo_F)(ths);
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_F] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_B] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
     for(INT j=0; j<ths->local_M; j++)
       ths->f[j] = 0;
@@ -139,20 +139,20 @@ static void grad_ik_complex_input(
     for(INT j=0; j<ths->local_M; j++)
       ((C*)ths->f)[j] = 0;
   PNX(trafo_B_grad_ik)(ths, ths->f, 0, 1);
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_B] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
 
   /* calculate gradient component wise */
   for(int dim =0; dim<3; dim++){
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_D] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
     PNX(scale_ik_diff_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
         (C*)ths->g1);
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_D] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
     
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_F] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
     PNX(trafo_F)(ths);
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_F] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_B] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
       for(INT j=0; j<ths->local_M; j++)
         ths->grad_f[3*j+dim] = 0;
@@ -160,7 +160,7 @@ static void grad_ik_complex_input(
       for(INT j=0; j<ths->local_M; j++)
         ((C*)ths->grad_f)[3*j+dim] = 0;
     PNX(trafo_B_grad_ik)(ths, ths->grad_f, dim, 3);
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_B] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
 }
 
@@ -173,12 +173,12 @@ void PNX(direct_trafo)(
     return;
   }
 
-  ths->timer_trafo[PNFFT_TIMER_WHOLE] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
   
   PNX(trafo_A)(ths);
 
   ths->timer_trafo[PNFFT_TIMER_ITER]++;
-  ths->timer_trafo[PNFFT_TIMER_WHOLE] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 }
 
 void PNX(direct_adj)(
@@ -190,12 +190,12 @@ void PNX(direct_adj)(
     return;
   }
 
-  ths->timer_adj[PNFFT_TIMER_WHOLE] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
   PNX(adj_A)(ths);
 
   ths->timer_adj[PNFFT_TIMER_ITER]++;
-  ths->timer_adj[PNFFT_TIMER_WHOLE] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
 }
 
 /* parallel 3dNFFT with different window functions */
@@ -208,32 +208,32 @@ void PNX(trafo)(
     return;
   }
 
-  ths->timer_trafo[PNFFT_TIMER_WHOLE] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 
   /* multiplication with matrix D */
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_D] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
   PNX(trafo_D)(ths);
-  ths->timer_trafo[PNFFT_TIMER_MATRIX_D] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
  
   if((ths->pnfft_flags & PNFFT_GRAD_IK) && (ths->compute_flags & PNFFT_COMPUTE_GRAD_F) ){
     grad_ik_complex_input(ths);
   } else {
     /* multiplication with matrix F */
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_F] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
     PNX(trafo_F)(ths);
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_F] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
     /* multiplication with matrix B */
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_B] -= MPI_Wtime();
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     if(ths->pnfft_flags & PNFFT_INTERLACED)
       PNX(trafo_B_grad_ad)(ths, 1);
     else
       PNX(trafo_B_grad_ad)(ths, 0);
-    ths->timer_trafo[PNFFT_TIMER_MATRIX_B] += MPI_Wtime();
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
  
   ths->timer_trafo[PNFFT_TIMER_ITER]++;
-  ths->timer_trafo[PNFFT_TIMER_WHOLE] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 }
 
 void PNX(adj)(
@@ -245,28 +245,28 @@ void PNX(adj)(
     return;
   }
 
-  ths->timer_adj[PNFFT_TIMER_WHOLE] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
   /* multiplication with matrix B^T */
-  ths->timer_adj[PNFFT_TIMER_MATRIX_B] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
   if(ths->pnfft_flags & PNFFT_INTERLACED)
     PNX(adjoint_B)(ths, 1);
   else
     PNX(adjoint_B)(ths, 0);
-  ths->timer_adj[PNFFT_TIMER_MATRIX_B] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
 
   /* multiplication with matrix F^H */
-  ths->timer_adj[PNFFT_TIMER_MATRIX_F] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
   PNX(adjoint_F)(ths);
-  ths->timer_adj[PNFFT_TIMER_MATRIX_F] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
 
   /* multiplication with matrix D */
-  ths->timer_adj[PNFFT_TIMER_MATRIX_D] -= MPI_Wtime();
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
   PNX(adjoint_D)(ths);
-  ths->timer_adj[PNFFT_TIMER_MATRIX_D] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 
   ths->timer_adj[PNFFT_TIMER_ITER]++;
-  ths->timer_adj[PNFFT_TIMER_WHOLE] += MPI_Wtime();
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
 }
 
 
