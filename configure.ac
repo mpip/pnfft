@@ -61,16 +61,15 @@ AM_INIT_AUTOMAKE([1.9.6 foreign])
 # multithreaded code
 AC_ARG_ENABLE(threads,
   [AS_HELP_STRING([--enable-threads], [enable multithreaded code])],
-  enable_threads=$enableval,
-  enable_threads=no)
+  enable_threads=$enableval, enable_threads=no)
 AM_CONDITIONAL(HAVE_THREADS, test "x$enable_threads" = "xyes" )
 
 # debug mode
 AC_ARG_ENABLE(debug,
-  [AS_HELP_STRING([--enable-debug], [compile with extra runtime checks for debugging])],  enable_debug=$enableval,
-  enable_debug=no)
-if test "x$enable_debug" = "xyes"; then
-  AC_DEFINE(PNFFT_DEBUG,1,[Define to enable extra debugging code.])
+  [AS_HELP_STRING([--enable-debug], [compile with extra runtime checks for debugging])],
+  enable_debug=$enableval, enable_debug=no)
+if test "x$enable_debug" != "xno"; then
+  AC_DEFINE(PNFFT_ENABLE_DEBUG, [1], [Define to enable extra debugging code.])
 fi
 
 # disable fortran wrappers
@@ -88,8 +87,8 @@ AC_ARG_WITH(gfortran-wrappers, [AS_HELP_STRING([--with-gfortran-wrappers],
 AC_ARG_ENABLE(synced-timing, 
   [AS_HELP_STRING([--enable-synced-timing], [synchronize all time measurements with MPI Barriers])],
   enable_synced_timing=$enableval, enable_synced_timing=no)
-if test "x$enable_synced_timing" = "xyes"; then
-  AC_DEFINE(PNFFT_ENABLE_SYNCED_TIMING,1,[synchronize all time measurements with MPI Barriers.])
+if test "x$enable_synced_timing" != "xno"; then
+  AC_DEFINE(PNFFT_ENABLE_SYNCED_TIMING, 1, [Define to synchronize all time measurements with MPI Barriers.])
 fi
 
 # set precision
