@@ -120,28 +120,36 @@ static void pnfft_perform_guru(
     return;
   }
 
+  /* get parameters of data distribution */
   pnfft_local_size_guru(3, N, n, x_max, m, comm_cart_3d, PNFFT_TRANSPOSED_F_HAT,
       local_N, local_N_start, lower_border, upper_border);
 
+  /* plan parallel NFFT */
   pnfft = pnfft_init_guru(3, N, n, x_max, local_M, m,
       PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| PNFFT_MALLOC_GRAD_F| PNFFT_TRANSPOSED_F_HAT| window_flag, PFFT_ESTIMATE,
       comm_cart_3d);
 
+  /* get data pointers */
   f_hat   = pnfft_get_f_hat(pnfft);
   *f      = pnfft_get_f(pnfft);
   *grad_f = pnfft_get_grad_f(pnfft);
   x       = pnfft_get_x(pnfft);
 
+  /* initialize Fourier coefficients */
   pnfft_init_f_hat_3d(N, local_N, local_N_start, PNFFT_TRANSPOSED_F_HAT,
       f_hat);
 
+  /* initialize nonequispaced nodes */
+  srand(1);
   pnfft_init_x_3d_adv(lower_border, upper_border, x_max, local_M,
       x);
 
+  /* execute parallel NFFT */
   time = -MPI_Wtime();
   pnfft_trafo(pnfft);
   time += MPI_Wtime();
   
+  /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
   pfft_printf(comm, "pnfft_trafo with gradient needs %6.2e s\n", time_max);
  

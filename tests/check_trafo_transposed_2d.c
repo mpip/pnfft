@@ -136,6 +136,7 @@ static void pnfft_perform_guru(
       f_hat);
 
   /* initialize nonequispaced nodes */
+  srand(1);
   pnfft_init_x_3d_adv(lower_border, upper_border, x_max, local_M,
       x);
 
