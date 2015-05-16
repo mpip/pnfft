@@ -121,9 +121,14 @@ static inline R phi_hat_sinc_power(
   ( (PNFFT_ABS(k) >= (n) - (N)/2) ? 0.0 : PNX(bspline)(2 * (m), (R)(k) * (b) / ((R) n) + (R)(m), (spline_coeffs)) )
 
 
+static void convolution_due_to_interlacing(
+    const INT *n,
+    const INT *local_N, const INT *local_N_start,
+    unsigned pnfft_flags, int sign,
+    C *inout);
 static void convolution_with_general_window(
     const C *in,
-    const INT *n, const INT *no,
+    const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
     const PNX(plan) window_param, int sign,
@@ -174,7 +179,7 @@ R PNX(phi_hat)(
 }
 
 void PNX(trafo_D)(
-    PNX(plan) ths
+    PNX(plan) ths, int interlaced
     )
 {
 #if PNFFT_ENABLE_DEBUG
@@ -189,14 +194,20 @@ void PNX(trafo_D)(
         (C*)ths->g1);
   } else {
     convolution_with_general_window(
-        ths->f_hat, ths->n, ths->no, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_FORWARD,
+        ths->f_hat, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_FORWARD,
         (C*)ths->g1);
   }
+
+  /* interlaced NFFT needs extra modulation to revert the shift in x */
+  if(interlaced)
+    convolution_due_to_interlacing(
+        ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, FFTW_FORWARD,
+        (C*)ths->g1);
 }
 
 
 void PNX(adjoint_D)(
-    PNX(plan) ths
+    PNX(plan) ths, int interlaced
     )
 {
   /* use precomputed window Fourier coefficients if possible */
@@ -206,9 +217,15 @@ void PNX(adjoint_D)(
         ths->f_hat);
   } else {
     convolution_with_general_window(
-        (C*)ths->g1, ths->n, ths->no, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_BACKWARD,
+        (C*)ths->g1, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_BACKWARD,
         ths->f_hat);
   }
+
+  /* interlaced NFFT needs extra modulation to revert the shift in x */
+  if(interlaced)
+    convolution_due_to_interlacing(
+        ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, FFTW_BACKWARD,
+        ths->f_hat);
 
 #if PNFFT_ENABLE_DEBUG
   PNX(debug_sum_print)((R*)ths->f_hat, ths->local_N[0]*ths->local_N[1]*ths->local_N[2], 1,
@@ -216,9 +233,46 @@ void PNX(adjoint_D)(
 #endif
 }
 
+static void convolution_due_to_interlacing(
+    const INT *n,
+    const INT *local_N, const INT *local_N_start,
+    unsigned pnfft_flags, int sign,
+    C *inout
+    )
+{
+  INT k0, k1, k2, k=0;
+  R h0, h1, h2;
+
+  if(pnfft_flags & PNFFT_TRANSPOSED_F_HAT){
+    /* f_hat is transposed N1 x N2 x N0 */
+    for(k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
+      h1 = (R) k1/n[1];
+      for(k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++){
+        h2 = h1 + (R) k2/n[2];
+        for(k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++, k++){
+          h0 = h2 + (R) k0/n[0];
+          inout[k] *= pnfft_cexp(-sign * PNFFT_PI * I * h0);
+        }
+      }
+    }
+  } else {
+    /* f_hat is non-transposed N0 x N1 x N2 */
+    for(k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++){
+      h0 = (R) k0/n[0];
+      for(k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
+        h1 = h0 + (R) k1/n[1];
+        for(k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, k++){
+          h2 = h1 + (R) k2/n[2];
+          inout[k] *= pnfft_cexp(-sign * PNFFT_PI * I * h2);
+        }
+      }
+    }
+  }
+}
+
 static void convolution_with_general_window(
     const C *in,
-    const INT *n, const INT *no,
+    const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
     const PNX(plan) window_param, int sign,

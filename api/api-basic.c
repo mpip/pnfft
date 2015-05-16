@@ -117,7 +117,7 @@ void PNX(init_nodes)(
 }
 
 static void grad_ik_complex_input(
-    PNX(plan) ths
+    PNX(plan) ths, int interlaced
     )
 {
   /* duplicate g1 since we have to scale it several times for computing the gradient */
@@ -138,7 +138,7 @@ static void grad_ik_complex_input(
   else
     for(INT j=0; j<ths->local_M; j++)
       ((C*)ths->f)[j] = 0;
-  PNX(trafo_B_grad_ik)(ths, ths->f, 0, 1);
+  PNX(trafo_B_grad_ik)(ths, ths->f, 0, 1, interlaced);
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
 
   /* calculate gradient component wise */
@@ -159,7 +159,7 @@ static void grad_ik_complex_input(
     else
       for(INT j=0; j<ths->local_M; j++)
         ((C*)ths->grad_f)[3*j+dim] = 0;
-    PNX(trafo_B_grad_ik)(ths, ths->grad_f, dim, 3);
+    PNX(trafo_B_grad_ik)(ths, ths->grad_f, dim, 3, interlaced);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
 }
@@ -198,6 +198,30 @@ void PNX(direct_adj)(
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
 }
 
+static void trafo(
+    PNX(plan) ths, int interlaced
+    )
+{
+  /* multiplication with matrix D */
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
+  PNX(trafo_D)(ths, interlaced);
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
+ 
+  if((ths->pnfft_flags & PNFFT_GRAD_IK) && (ths->compute_flags & PNFFT_COMPUTE_GRAD_F) ){
+    grad_ik_complex_input(ths, interlaced);
+  } else {
+    /* multiplication with matrix F */
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+    PNX(trafo_F)(ths);
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+
+    /* multiplication with matrix B */
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+    PNX(trafo_B_grad_ad)(ths, interlaced);
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+  }
+}
+
 /* parallel 3dNFFT with different window functions */
 void PNX(trafo)(
     PNX(plan) ths
@@ -210,30 +234,89 @@ void PNX(trafo)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 
-  /* multiplication with matrix D */
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
-  PNX(trafo_D)(ths);
-  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
- 
-  if((ths->pnfft_flags & PNFFT_GRAD_IK) && (ths->compute_flags & PNFFT_COMPUTE_GRAD_F) ){
-    grad_ik_complex_input(ths);
-  } else {
-    /* multiplication with matrix F */
-    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
-    PNX(trafo_F)(ths);
-    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+  /* compute non-interlaced NFFT */
+  trafo(ths, 0);
 
-    /* multiplication with matrix B */
-    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
-    if(ths->pnfft_flags & PNFFT_INTERLACED)
-      PNX(trafo_B_grad_ad)(ths, 1);
-    else
-      PNX(trafo_B_grad_ad)(ths, 0);
-    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+  /* compute interlaced NFFT and average the results */
+  if(ths->pnfft_flags & PNFFT_INTERLACED){
+    R *buffer_f_r=NULL, *buffer_grad_f_r=NULL;
+    C *buffer_f_c=NULL, *buffer_grad_f_c=NULL;
+    R *f_r = ths->f,     *grad_f_r = ths->grad_f;
+    C *f_c = (C*)ths->f, *grad_f_c = (C*)ths->grad_f;
+
+    if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
+      if(ths->compute_flags & PNFFT_COMPUTE_F){
+        buffer_f_r = ths->local_M ? PNX(malloc_R)(ths->local_M) : NULL;
+        for(INT j=0; j<ths->local_M; j++)
+          buffer_f_r[j] = f_r[j];
+      }
+      if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
+        buffer_grad_f_r = ths->local_M ? PNX(malloc_R)(ths->d*ths->local_M) : NULL;
+        for(INT j=0; j<ths->d*ths->local_M; j++)
+          buffer_grad_f_r[j] = grad_f_r[j];
+      }
+    } else {
+      if(ths->compute_flags & PNFFT_COMPUTE_F){
+        buffer_f_c = ths->local_M ? PNX(malloc_C)(ths->local_M) : NULL;
+        for(INT j=0; j<ths->local_M; j++)
+          buffer_f_c[j] = f_c[j];
+      }
+      if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
+        buffer_grad_f_c = ths->local_M ? PNX(malloc_C)(ths->d*ths->local_M) : NULL;
+        for(INT j=0; j<ths->d*ths->local_M; j++)
+          buffer_grad_f_c[j] = grad_f_c[j];
+      }
+    }
+
+    trafo(ths, 1);
+
+    if(ths->compute_flags & PNFFT_COMPUTE_F) {
+      if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
+        for(INT j=0; j<ths->local_M; j++)
+          f_r[j] = 0.5 * (f_r[j] + buffer_f_r[j]);
+      } else {
+        for(INT j=0; j<ths->local_M; j++)
+          f_c[j] = 0.5 * (f_c[j] + buffer_f_c[j]);
+      }
+    }
+    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F) {
+      if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
+        for(INT j=0; j<ths->d*ths->local_M; j++)
+          grad_f_r[j] = 0.5 * (grad_f_r[j] + buffer_grad_f_r[j]);
+      } else {
+        for(INT j=0; j<ths->d*ths->local_M; j++)
+          grad_f_c[j] = 0.5 * (grad_f_c[j] + buffer_grad_f_c[j]);
+      }
+    }
+
+    if(buffer_f_r != NULL) PNX(free)(buffer_f_r);
+    if(buffer_f_c != NULL) PNX(free)(buffer_f_c);
+    if(buffer_grad_f_r != NULL) PNX(free)(buffer_grad_f_r);
+    if(buffer_grad_f_c != NULL) PNX(free)(buffer_grad_f_c);
   }
  
   ths->timer_trafo[PNFFT_TIMER_ITER]++;
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
+}
+
+static void adj(
+    PNX(plan) ths, int interlaced
+    )
+{
+  /* multiplication with matrix B^T */
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
+  PNX(adjoint_B)(ths, interlaced);
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
+
+  /* multiplication with matrix F^H */
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
+  PNX(adjoint_F)(ths);
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
+
+  /* multiplication with matrix D */
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
+  PNX(adjoint_D)(ths, interlaced);
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 }
 
 void PNX(adj)(
@@ -247,23 +330,22 @@ void PNX(adj)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
-  /* multiplication with matrix B^T */
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
-  if(ths->pnfft_flags & PNFFT_INTERLACED)
-    PNX(adjoint_B)(ths, 1);
-  else
-    PNX(adjoint_B)(ths, 0);
-  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
+  /* compute non-interlaced NFFT */
+  adj(ths, 0);
 
-  /* multiplication with matrix F^H */
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
-  PNX(adjoint_F)(ths);
-  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
+  /* compute interlaced NFFT and average the results */
+  if(ths->pnfft_flags & PNFFT_INTERLACED){
+    C* buffer_f_hat = ths->local_N_total ? PNX(malloc_C)(ths->local_N_total) : NULL;
 
-  /* multiplication with matrix D */
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
-  PNX(adjoint_D)(ths);
-  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
+    for(INT m=0; m<ths->local_N_total; m++)
+      buffer_f_hat[m] = ths->f_hat[m];
+
+    adj(ths, 1);
+
+    for(INT m=0; m<ths->local_N_total; m++)
+      ths->f_hat[m] = 0.5 * (ths->f_hat[m] + buffer_f_hat[m]);
+    if(buffer_f_hat != NULL) PNX(free)(buffer_f_hat);
+  }
 
   ths->timer_adj[PNFFT_TIMER_ITER]++;
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);

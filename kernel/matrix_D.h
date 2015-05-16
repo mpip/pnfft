@@ -22,9 +22,9 @@
 #define __MATRIX_D_H__
 
 void PNX(trafo_D)(
-    PNX(plan) ths);
+    PNX(plan) ths, int interlaced);
 void PNX(adjoint_D)(
-    PNX(plan) ths);
+    PNX(plan) ths, int interlaced);
 
 void PNX(precompute_inv_phi_hat_trafo)(
     PNX(plan) ths,

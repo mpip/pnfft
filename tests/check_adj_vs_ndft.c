@@ -4,13 +4,13 @@
 
 static void perform_pnfft_adj_guru(
     const ptrdiff_t *N, const ptrdiff_t *n, ptrdiff_t local_M,
-    int m, const double *x_max, unsigned window_flag,
+    int m, const double *x_max, unsigned pnfft_flags,
     const int *np, MPI_Comm comm);
 
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *local_M,
-    int *m, int *window,
+    int *m, int *window, int *interlacing,
     double *x_max, int *np);
 static void init_random_x(
     const double *lo, const double *up,
@@ -24,8 +24,7 @@ static double random_number_less_than_one(
 
 
 int main(int argc, char **argv){
-  int np[3], m, window;
-  unsigned window_flag;
+  int np[3], m, window, interlacing;
   ptrdiff_t N[3], n[3], local_M;
   double x_max[3];
   
@@ -38,17 +37,20 @@ int main(int argc, char **argv){
   local_M = 0;
   m = 6;
   window = 4;
+  interlacing = 0;
   x_max[0] = x_max[1] = x_max[2] = 0.5;
   np[0]=2; np[1]=2; np[2]=2;
   
   /* set parameters by command line */
-  init_parameters(argc, argv, N, n, &local_M, &m, &window, x_max, np);
+  int intpol = -1;
+  init_parameters(argc, argv, N, n, &local_M, &m, &window, &interlacing, x_max, np);
 
   /* if M or n are set to zero, we choose nice values */
   local_M = (local_M==0) ? N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]) : local_M;
   for(int t=0; t<3; t++)
     n[t] = (n[t]==0) ? 2*N[t] : n[t];
 
+  unsigned window_flag;
   switch(window){
     case 0: window_flag = PNFFT_WINDOW_GAUSSIAN; break;
     case 1: window_flag = PNFFT_WINDOW_BSPLINE; break;
@@ -56,6 +58,17 @@ int main(int argc, char **argv){
     case 3: window_flag = PNFFT_WINDOW_BESSEL_I0; break;
     default: window_flag = PNFFT_WINDOW_KAISER_BESSEL;
   }
+
+  unsigned intpol_flag;
+  switch(intpol){
+    case 0: intpol_flag = PNFFT_PRE_CONST_PSI; break;
+    case 1: intpol_flag = PNFFT_PRE_LIN_PSI; break;
+    case 2: intpol_flag = PNFFT_PRE_QUAD_PSI; break;
+    case 3: intpol_flag = PNFFT_PRE_CUB_PSI; break;
+    default: intpol_flag = (window==0) ? PNFFT_FG_PSI : 0;
+  }
+
+  unsigned interlacing_flag = (interlacing) ? PNFFT_INTERLACED : 0;
 
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
@@ -72,12 +85,28 @@ int main(int argc, char **argv){
     default: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_window *),\n");
+  pfft_printf(MPI_COMM_WORLD, "*      intpol = %d interpolation order ", intpol);
+  switch(intpol){
+    case 0: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CONST_PSI) "); break;
+    case 1: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_LIN_PSI) "); break;
+    case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_QUAD_PSI) "); break;
+    case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CUB_PSI) "); break;
+    default: if(window==0)
+               pfft_printf(MPI_COMM_WORLD, "(PNFFT_FG_PSI) ");
+             else
+               pfft_printf(MPI_COMM_WORLD, "(No interpolation enabled) ");
+  }
+  pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_intpol *),\n");
+  if(interlacing)
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = enabled (disable with -pnfft_interlacing 0)");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = disabled (enable with -pnfft_interlacing 1)");
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 
 
   /* calculate parallel NFFT */
-  perform_pnfft_adj_guru(N, n, local_M, m,   x_max, window_flag, np, MPI_COMM_WORLD);
+  perform_pnfft_adj_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag, np, MPI_COMM_WORLD);
 
   /* free mem and finalize */
   pnfft_cleanup();
@@ -88,7 +117,7 @@ int main(int argc, char **argv){
 
 static void perform_pnfft_adj_guru(
     const ptrdiff_t *N, const ptrdiff_t *n, ptrdiff_t local_M,
-    int m, const double *x_max, unsigned window_flag,
+    int m, const double *x_max, unsigned pnfft_flags,
     const int *np, MPI_Comm comm
     )
 {
@@ -121,13 +150,13 @@ static void perform_pnfft_adj_guru(
 
   /* plan parallel NFFT */
   pnfft = pnfft_init_guru(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| window_flag, PFFT_ESTIMATE,
+      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| pnfft_flags, PFFT_ESTIMATE,
       comm_cart_3d);
 
   /* get data pointers */
   f_hat = pnfft_get_f_hat(pnfft);
-  f      = pnfft_get_f(pnfft);
-  x      = pnfft_get_x(pnfft);
+  f     = pnfft_get_f(pnfft);
+  x     = pnfft_get_x(pnfft);
 
   /* initialize Fourier coefficients */
   srand(1);
@@ -179,7 +208,7 @@ static void perform_pnfft_adj_guru(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *local_M,
-    int *m, int *window,
+    int *m, int *window, int *interlacing,
     double *x_max, int *np
     )
 {
@@ -189,6 +218,7 @@ static void init_parameters(
   pfft_get_args(argc, argv, "-pnfft_np", 3, PFFT_INT, np);
   pfft_get_args(argc, argv, "-pnfft_m", 1, PFFT_INT, m);
   pfft_get_args(argc, argv, "-pnfft_window", 1, PFFT_INT, window);
+  pfft_get_args(argc, argv, "-pnfft_interlacing", 1, PFFT_INT, interlacing);
   pfft_get_args(argc, argv, "-pnfft_x_max", 3, PFFT_DOUBLE, x_max);
 }
 

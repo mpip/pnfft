@@ -311,7 +311,7 @@ void PNX(adjoint_F)(
 void PNX(trafo_B_grad_ad)(
     PNX(plan) ths, int interlaced);
 void PNX(trafo_B_grad_ik)(
-    PNX(plan) ths, R *f, INT offset, INT stride);
+    PNX(plan) ths, R *f, INT offset, INT stride, int interlaced);
 void PNX(adjoint_B)(
     PNX(plan) ths, int interlaced);
 void PNX(malloc_x)(
