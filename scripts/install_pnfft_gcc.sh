@@ -1,30 +1,89 @@
-#!/bin/sh -e
+#!/bin/bash 
 
 myprefix=$HOME/local
-PNFFT_VERSION=1.0.5-alpha
-PFFT_VERSION=1.0.6-alpha
-FFTW_VERSION=3.3.3
-INSTDIR=$myprefix/pnfft-$PNFFT_VERSION
-PFFTDIR=$myprefix/pfft-$PFFT_VERSION
-FFTWDIR=$myprefix/fftw-$FFTW_VERSION
-TMP="tmp-pnfft-$PNFFT_VERSION"
+FFTW_VERSION=3.3.4
+PFFT_VERSION=1.0.8-alpha
+PNFFT_VERSION=1.0.6-alpha
 
-# bash check if directory exists
-if [ -d $TMP ]; then
-        echo "Directory $TMP already exists. Delete it? (y/n)"
-	read answer
-	if [ ${answer} = "y" ]; then
-		rm -rf $TMP
-	else
-		echo "Program aborted."
-		exit 1
-	fi
+# ---- set path where the PNFFT configure can be found ----------------- 
+CONFDIR="$(pwd)/.."
+
+# ---- set paths where the PFFT headers and libs can be found -----
+# ---- choose between lib and lib64 depending on your system ----------
+PFFTDIR=$myprefix/pfft-$PFFT_VERSION
+PFFTINC=$PFFTDIR/include
+PFFTLIB=$PFFTDIR/lib64
+
+# ---- set paths where the FFTW-MPI headers and libs can be found -----
+# ---- choose between lib and lib64 depending on your system ----------
+FFTWDIR=$myprefix/fftw-$FFTW_VERSION
+FFTWINC=$FFTWDIR/include
+FFTWLIB=$FFTWDIR/lib64
+
+# ---- set PNFFT install path ---------------------------------------
+INSTDIR=$myprefix/pnfft-$PFFT_VERSION
+
+# ---- set build directory and name of the log file ------------------
+BUILDDIR="/LOCAL/builds/pnfft-$PNFFT_VERSION"
+LOGFILE="$BUILDDIR/build.log"
+
+# ---- set MPI compilers and compiler flags ------------------------
+# ---- choose between debugging and optimization flags -------------
+COMP="CC=mpicc FC=mpif90 MPICC=mpicc MPIFC=mpif90"
+echo "Use PNFFT debugging flags? (y/n)"
+read answer
+if [ ${answer} = "y" ]; then
+  INSTDIR="$INSTDIR-dbg"
+  BUILDDIR="$BUILDDIR-dbg"
+  CFLAGS="-O0 -ggdb -Wall"
+  FCFLAGS="-O0 -ggdb -Wall"
+  PNFFTDBG="--enable-debug"
+else
+  CFLAGS="-O3 -ffast-math -Wall"
+  FCFLAGS="-O3 -Wall"
+  PNFFTDBG=""
 fi
 
-mkdir $TMP && cd $TMP
-cd ../.. && ./bootstrap.sh && cd -
-../../configure --prefix=$INSTDIR --with-fftw3=$FFTWDIR --with-pfft=$PFFTDIR --disable-shared
+# ---- bash check if directory exists -----------------------------
+if [ -d $BUILDDIR ]; then
+  echo "Directory $BUILDDIR already exists. Delete it? (y/n)"
+  read answer
+  if [ ${answer} = "y" ]; then
+    rm -rf $BUILDDIR
+  else
+    echo "Install script aborted."
+    exit 1
+  fi
+fi
+mkdir -p $BUILDDIR 
 
-make -j 4
-make install
+# ---- Normally, we should not have to rerun bootstrap -----------
+echo "Rerun bootstrap? (y/n)"
+read answer
+if [ ${answer} = "y" ]; then
+  cd $CONFDIR
+  ./bootstrap.sh 2>&1 | tee $LOGFILE
+  cd -
+fi
 
+# ---- configure, build, install ----------------------------------
+cd $BUILDDIR
+$CONFDIR/configure --prefix=$INSTDIR --disable-shared \
+  $PNFFTDBG \
+  CPPFLAGS="-I$PFFTINC -I$FFTWINC" LDFLAGS="-L$PFFTLIB -L$FFTWLIB" \
+  $COMP \
+  CFLAGS="$CFLAGS" FCFLAGS="$FCFLAGS" \
+  2>&1 | tee -a $LOGFILE
+echo "*** PFFT successfully build in"
+echo "  $BUILDDIR"
+
+make -j4 check 2>&1 | tee -a $LOGFILE 
+make install 2>&1 | tee -a $LOGFILE 
+
+# ---- status output ---------------------------------------------
+echo "*** PNFFT build in"
+echo "  $BUILDDIR"
+echo "*** PNFFT installed in"
+echo "  $INSTDIR"
+echo "*** For details, look at the log file"
+echo "  $LOGFILE"
