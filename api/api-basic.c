@@ -108,12 +108,14 @@ void PNX(init_nodes)(
   PNX(free_x)(ths, pnfft_finalize_flags);
   PNX(free_f)(ths, pnfft_finalize_flags);
   PNX(free_grad_f)(ths, pnfft_finalize_flags);
+  PNX(free_hessian_f)(ths, pnfft_finalize_flags);
 
   /* allocate mem and adjust pnfft_flags, compute_flags */
   ths->local_M = local_M;
   PNX(malloc_x)(ths, pnfft_flags);
   PNX(malloc_f)(ths, pnfft_flags);
   PNX(malloc_grad_f)(ths, pnfft_flags);
+  PNX(malloc_hessian_f)(ths, pnfft_flags);
 }
 
 static void grad_ik_complex_input(
@@ -360,6 +362,8 @@ void PNX(finalize)(
     PNX(free)(ths->f_hat);
   if((pnfft_finalize_flags & PNFFT_FREE_GRAD_F) && (ths->grad_f != NULL))
     PNX(free)(ths->grad_f);
+  if((pnfft_finalize_flags & PNFFT_FREE_HESSIAN_F) && (ths->hessian_f != NULL))
+    PNX(free)(ths->hessian_f);
   if((pnfft_finalize_flags & PNFFT_FREE_F) && (ths->f != NULL))
     PNX(free)(ths->f);
   if((pnfft_finalize_flags & PNFFT_FREE_X) && (ths->x != NULL))
@@ -467,6 +471,20 @@ C* PNX(get_grad_f)(
   return (C*)ths->grad_f;
 }
 
+void PNX(set_hessian_f)(
+    C* hessian_f, PNX(plan) ths
+    )
+{
+  ths->hessian_f = (R*)hessian_f;
+}
+
+C* PNX(get_hessian_f)(
+    const PNX(plan) ths
+    )
+{
+  return (C*)ths->hessian_f;
+}
+
 void PNX(set_f_hat_real)(
     R *f_hat, PNX(plan) ths
     )
@@ -509,6 +527,19 @@ R* PNX(get_grad_f_real)(
   return ths->grad_f;
 }
 
+void PNX(set_hessian_f_real)(
+    R* hessian_f, PNX(plan) ths
+    )
+{
+  ths->hessian_f = hessian_f;
+}
+
+R* PNX(get_hessian_f_real)(
+    const PNX(plan) ths
+    )
+{
+  return ths->hessian_f;
+}
 
 void PNX(set_x)(
     R *x, PNX(plan) ths

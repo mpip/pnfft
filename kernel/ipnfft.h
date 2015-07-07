@@ -157,6 +157,7 @@ typedef struct PNX(plan_s){
   C *f_hat;                   /**< Vector of Fourier coefficients                  */
   R *f;                       /**< Vector of samples                               */
   R *grad_f;                  /**< Vector of gradients                             */
+  R *hessian_f;               /**< Upper triangle of the Hessian                   */
   R *x;                       /**< Nodes in time/spatial domain                    */
                                                                                      
   int d;                      /**< Dimension, rank                                 */
@@ -325,6 +326,10 @@ void PNX(free_f)(
 void PNX(malloc_grad_f)(
     PNX(plan) ths, unsigned pnfft_flags);
 void PNX(free_grad_f)(
+    PNX(plan) ths, unsigned pnfft_finalize_flags);
+void PNX(malloc_hessian_f)(
+    PNX(plan) ths, unsigned pnfft_flags);
+void PNX(free_hessian_f)(
     PNX(plan) ths, unsigned pnfft_finalize_flags);
 void PNX(node_borders)(
     const INT *n,

@@ -911,6 +911,7 @@ PNX(plan) PNX(init_internal)(
   PNX(malloc_x)(ths, pnfft_flags);
   PNX(malloc_f)(ths, pnfft_flags);
   PNX(malloc_grad_f)(ths, pnfft_flags);
+  PNX(malloc_hessian_f)(ths, pnfft_flags);
 
   return ths;
 }
@@ -1293,6 +1294,30 @@ void PNX(free_grad_f)(
   ths->compute_flags &= ~PNFFT_COMPUTE_GRAD_F;
 }
 
+void PNX(malloc_hessian_f)(
+    PNX(plan) ths, unsigned pnfft_flags
+    )
+{
+  if( ~pnfft_flags & PNFFT_MALLOC_HESSIAN_F )
+    return;
+
+  ths->hessian_f = (ths->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * 12 * (size_t) ths->d*ths->local_M) : NULL;
+  ths->pnfft_flags |= PNFFT_MALLOC_HESSIAN_F;
+  ths->compute_flags |= PNFFT_COMPUTE_HESSIAN_F;
+}
+
+void PNX(free_hessian_f)(
+    PNX(plan) ths, unsigned pnfft_finalize_flags
+    )
+{
+  if( ~pnfft_finalize_flags & PNFFT_FREE_HESSIAN_F )
+   return;
+
+  if(ths->grad_f != NULL)
+    PNX(free)(ths->hessian_f);
+  ths->pnfft_flags &= ~PNFFT_MALLOC_HESSIAN_F;
+  ths->compute_flags &= ~PNFFT_COMPUTE_HESSIAN_F;
+}
 
 void PNX(trafo_F)(
     PNX(plan) ths

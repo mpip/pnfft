@@ -126,12 +126,16 @@
       C *f, PNX(plan) ths);                                                             \
   PNFFT_EXTERN void PNX(set_grad_f)(                                                    \
       C *grad_f, PNX(plan) ths);                                                        \
+  PNFFT_EXTERN void PNX(set_hessian_f)(                                                 \
+      C *hessian_f, PNX(plan) ths);                                                     \
   PNFFT_EXTERN void PNX(set_f_hat_real)(                                                \
       R *f_hat, PNX(plan) ths);                                                         \
   PNFFT_EXTERN void PNX(set_f_real)(                                                    \
       R *f, PNX(plan) ths);                                                             \
   PNFFT_EXTERN void PNX(set_grad_f_real)(                                               \
       R *grad_f, PNX(plan) ths);                                                        \
+  PNFFT_EXTERN void PNX(set_hessian_f_real)(                                            \
+      R *hessian_f, PNX(plan) ths);                                                     \
   PNFFT_EXTERN void PNX(set_x)(                                                         \
       R *x, PNX(plan) ths);                                                             \
   PNFFT_EXTERN void PNX(set_b)(                                                         \
@@ -143,11 +147,15 @@
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN C *PNX(get_grad_f)(                                                      \
       const PNX(plan) ths);                                                             \
+  PNFFT_EXTERN C *PNX(get_hessian_f)(                                                   \
+      const PNX(plan) ths);                                                             \
   PNFFT_EXTERN R *PNX(get_f_hat_real)(                                                  \
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN R *PNX(get_f_real)(                                                      \
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN R *PNX(get_grad_f_real)(                                                 \
+      const PNX(plan) ths);                                                             \
+  PNFFT_EXTERN R *PNX(get_hessian_f_real)(                                              \
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN R *PNX(get_x)(                                                           \
       const PNX(plan) ths);                                                             \
@@ -295,29 +303,30 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_MALLOC_F_HAT     (1U<< 9)
 #define PNFFT_MALLOC_F         (1U<< 10)
 #define PNFFT_MALLOC_GRAD_F    (1U<< 11)
+#define PNFFT_MALLOC_HESSIAN_F (1U<< 12)
 
 #define PNFFT_FFT_OUT_OF_PLACE (0U)
-#define PNFFT_FFT_IN_PLACE     (1U<< 12)
-#define PNFFT_SORT_NODES       (1U<< 13)
-#define PNFFT_INTERLACED       (1U<< 14)
-#define PNFFT_SHIFTED_F_HAT    (1U<< 15)
-#define PNFFT_SHIFTED_X        (1U<< 16)
+#define PNFFT_FFT_IN_PLACE     (1U<< 13)
+#define PNFFT_SORT_NODES       (1U<< 14)
+#define PNFFT_INTERLACED       (1U<< 15)
+#define PNFFT_SHIFTED_F_HAT    (1U<< 16)
+#define PNFFT_SHIFTED_X        (1U<< 17)
 #define PNFFT_TRANSPOSED_NONE  (0U)
-#define PNFFT_TRANSPOSED_F_HAT (1U<< 17)
+#define PNFFT_TRANSPOSED_F_HAT (1U<< 18)
 
 #define PNFFT_GRAD_AD          (0U)
-#define PNFFT_GRAD_IK          (1U<< 18)
-#define PNFFT_GRAD_NONE        (1U<< 19) /* turn off gradient NFFT and save memory for buffers */
+#define PNFFT_GRAD_IK          (1U<< 19)
+#define PNFFT_GRAD_NONE        (1U<< 20) /* turn off gradient NFFT and save memory for buffers */
 
 /* enable some optimizations for real inputs */
-#define PNFFT_REAL_F           (1U<< 20)
+#define PNFFT_REAL_F           (1U<< 21)
 
 /* default window function is Kaiser-Bessel */
 #define PNFFT_WINDOW_KAISER_BESSEL  (0U)
-#define PNFFT_WINDOW_GAUSSIAN       (1U<< 21)
-#define PNFFT_WINDOW_BSPLINE        (1U<< 22)
-#define PNFFT_WINDOW_SINC_POWER     (1U<< 23)
-#define PNFFT_WINDOW_BESSEL_I0      (1U<< 24)
+#define PNFFT_WINDOW_GAUSSIAN       (1U<< 22)
+#define PNFFT_WINDOW_BSPLINE        (1U<< 23)
+#define PNFFT_WINDOW_SINC_POWER     (1U<< 24)
+#define PNFFT_WINDOW_BESSEL_I0      (1U<< 25)
 
 
 #define PNFFT_PRE_INTPOL_PSI ((PNFFT_PRE_CONST_PSI| PNFFT_PRE_LIN_PSI| PNFFT_PRE_QUAD_PSI| PNFFT_PRE_CUB_PSI))
@@ -327,9 +336,11 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_FREE_F_HAT       ((PNFFT_MALLOC_F_HAT))
 #define PNFFT_FREE_F           ((PNFFT_MALLOC_F))
 #define PNFFT_FREE_GRAD_F      ((PNFFT_MALLOC_GRAD_F))
+#define PNFFT_FREE_HESSIAN_F   ((PNFFT_MALLOC_HESSIAN_F))
 
-#define PNFFT_COMPUTE_F        ((PNFFT_MALLOC_F))
-#define PNFFT_COMPUTE_GRAD_F   ((PNFFT_MALLOC_GRAD_F))
+#define PNFFT_COMPUTE_F         ((PNFFT_MALLOC_F))
+#define PNFFT_COMPUTE_GRAD_F    ((PNFFT_MALLOC_GRAD_F))
+#define PNFFT_COMPUTE_HESSIAN_F ((PNFFT_MALLOC_HESSIAN_F))
 
 #define PNFFT_INT            ((PFFT_INT))
 #define PNFFT_PTRDIFF_T      ((PFFT_PTRDIFF_T))
