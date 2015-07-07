@@ -90,12 +90,12 @@ int main(int argc, char **argv)
   f_c2c     = pnfft_get_f(plan_c2c);
   f_hat_c2c = pnfft_get_f_hat(plan_c2c);
   x_c2c     = pnfft_get_x(plan_c2c);
-  f_c2r     = pnfft_get_f(plan_c2r);
+  f_c2r     = pnfft_get_f_real(plan_c2r);
   f_hat_c2r = pnfft_get_f_hat(plan_c2r);
   x_c2r     = pnfft_get_x(plan_c2r);
 
   /* Initialize Fourier coefficients with random numbers */
-  init_input(N, local_N_c2c, local_N_start_c2c, 1, f_c2c);
+  init_input(N, local_N_c2c, local_N_start_c2c, 1, (double*) f_c2c);
   init_input(N, local_N_c2c, local_N_start_c2c, 0, f_c2r);
 
   /* Initialize nodes with random numbers */
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
         }
       }
     }
-    fsync(file_c2c);
+//     fsync(file_c2c);
     fclose(file_c2c);
   }
 
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
         }
       }
     }
-    fsync(file_c2r);
+//     fsync(file_c2r);
     fclose(file_c2r);
   }
 

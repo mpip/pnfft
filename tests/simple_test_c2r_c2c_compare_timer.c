@@ -11,7 +11,7 @@
 
 void message(char *string, MPI_Comm comm);
 
-static void init_equispaced_x(const ptrdiff_t *N, const double *lo, const double *up, double *x);
+// static void init_equispaced_x(const ptrdiff_t *N, const double *lo, const double *up, double *x);
 static void init_input(const ptrdiff_t *N, const ptrdiff_t *local_N, const ptrdiff_t *local_N_start, double complex *data);
 
 static void init_parameters(
@@ -26,7 +26,6 @@ int main(int argc, char **argv)
   int np[3];
   ptrdiff_t N[3];
   ptrdiff_t local_M;
-  double err;
   MPI_Comm comm_cart_3d;
   int repetitions;
   char str[LEN];
@@ -34,14 +33,16 @@ int main(int argc, char **argv)
   ptrdiff_t local_N_c2c[3], local_N_start_c2c[3];
   double lower_border_c2c[3], upper_border_c2c[3];
   pnfft_plan plan_c2c;
-  pnfft_complex *f_hat_c2c, *f_c2c;
+  pnfft_complex *f_hat_c2c;
+//   pnfft_complex *f_c2c;
   double *x_c2c;
 
   ptrdiff_t local_N_c2r[3], local_N_start_c2r[3];
   double lower_border_c2r[3], upper_border_c2r[3];
   pnfft_plan plan_c2r;
   pnfft_complex *f_hat_c2r;
-  double *x_c2r, *f_c2r;
+  double *x_c2r;
+//   double *f_c2r;
 
   /* Initialize MPI and PFFT */
   MPI_Init(&argc, &argv);
@@ -89,10 +90,10 @@ int main(int argc, char **argv)
 
 
   f_hat_c2c = pnfft_get_f_hat(plan_c2c);
-  f_c2c     = pnfft_get_f(plan_c2c);
+//   f_c2c     = pnfft_get_f(plan_c2c);
   x_c2c     = pnfft_get_x(plan_c2c);
   f_hat_c2r = pnfft_get_f_hat(plan_c2r);
-  f_c2r     = pnfft_get_f(plan_c2r);
+//   f_c2r     = pnfft_get_f_real(plan_c2r);
   x_c2r     = pnfft_get_x(plan_c2r);
 
   /* Initialize Fourier coefficients with random numbers */
@@ -186,26 +187,26 @@ static void init_input(const ptrdiff_t *N, const ptrdiff_t *local_N, const ptrdi
         data[m] = semirandom(N, k0, k1, k2) + conj(semirandom(N, -k0, -k1, -k2));
 }
 
-static void init_equispaced_x(
-    const ptrdiff_t *N, const double *lo, const double *up,
-    double *x
-    )
-{
-  /* enter your code here and call make when you are finished */
-
-  ptrdiff_t local_N[3], local_N_start[3], m=0;
-  for(int t=0; t<3; t++){
-    local_N[t] = ((up[t]-lo[t]) * N[t]);
-    local_N_start[t] = lo[t] * N[t];
-  }
-
-  m=0;
-  for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
-    for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
-      for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, m++){
-        x[3*m+0] = (double) k0 / N[0];
-        x[3*m+1] = (double) k1 / N[1];
-        x[3*m+2] = (double) k2 / N[2];
-      }
-}
-
+// static void init_equispaced_x(
+//     const ptrdiff_t *N, const double *lo, const double *up,
+//     double *x
+//     )
+// {
+//   /* enter your code here and call make when you are finished */
+// 
+//   ptrdiff_t local_N[3], local_N_start[3], m=0;
+//   for(int t=0; t<3; t++){
+//     local_N[t] = ((up[t]-lo[t]) * N[t]);
+//     local_N_start[t] = lo[t] * N[t];
+//   }
+// 
+//   m=0;
+//   for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
+//     for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
+//       for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, m++){
+//         x[3*m+0] = (double) k0 / N[0];
+//         x[3*m+1] = (double) k1 / N[1];
+//         x[3*m+2] = (double) k2 / N[2];
+//       }
+// }
+// 
