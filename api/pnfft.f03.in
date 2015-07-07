@@ -33,19 +33,20 @@
   integer(C_INT), parameter :: PNFFT_MALLOC_F_HAT = 512
   integer(C_INT), parameter :: PNFFT_MALLOC_F = 1024
   integer(C_INT), parameter :: PNFFT_MALLOC_GRAD_F = 2048
-  integer(C_INT), parameter :: PNFFT_FFT_IN_PLACE = 4096
-  integer(C_INT), parameter :: PNFFT_SORT_NODES = 8192
-  integer(C_INT), parameter :: PNFFT_INTERLACED = 16384
-  integer(C_INT), parameter :: PNFFT_SHIFTED_F_HAT = 32768
-  integer(C_INT), parameter :: PNFFT_SHIFTED_X = 65536
-  integer(C_INT), parameter :: PNFFT_TRANSPOSED_F_HAT = 131072
-  integer(C_INT), parameter :: PNFFT_GRAD_IK = 262144
-  integer(C_INT), parameter :: PNFFT_GRAD_NONE = 524288
-  integer(C_INT), parameter :: PNFFT_REAL_F = 1048576
-  integer(C_INT), parameter :: PNFFT_WINDOW_GAUSSIAN = 2097152
-  integer(C_INT), parameter :: PNFFT_WINDOW_BSPLINE = 4194304
-  integer(C_INT), parameter :: PNFFT_WINDOW_SINC_POWER = 8388608
-  integer(C_INT), parameter :: PNFFT_WINDOW_BESSEL_I0 = 16777216
+  integer(C_INT), parameter :: PNFFT_MALLOC_HESSIAN_F = 4096
+  integer(C_INT), parameter :: PNFFT_FFT_IN_PLACE = 8192
+  integer(C_INT), parameter :: PNFFT_SORT_NODES = 16384
+  integer(C_INT), parameter :: PNFFT_INTERLACED = 32768
+  integer(C_INT), parameter :: PNFFT_SHIFTED_F_HAT = 65536
+  integer(C_INT), parameter :: PNFFT_SHIFTED_X = 131072
+  integer(C_INT), parameter :: PNFFT_TRANSPOSED_F_HAT = 262144
+  integer(C_INT), parameter :: PNFFT_GRAD_IK = 524288
+  integer(C_INT), parameter :: PNFFT_GRAD_NONE = 1048576
+  integer(C_INT), parameter :: PNFFT_REAL_F = 2097152
+  integer(C_INT), parameter :: PNFFT_WINDOW_GAUSSIAN = 4194304
+  integer(C_INT), parameter :: PNFFT_WINDOW_BSPLINE = 8388608
+  integer(C_INT), parameter :: PNFFT_WINDOW_SINC_POWER = 16777216
+  integer(C_INT), parameter :: PNFFT_WINDOW_BESSEL_I0 = 33554432
 
 ! redirections
   integer(C_INT), parameter :: PNFFT_PRE_FG_PSI = PNFFT_PRE_PSI &
@@ -64,8 +65,10 @@
   integer(C_INT), parameter :: PNFFT_FREE_F_HAT = PNFFT_MALLOC_F_HAT
   integer(C_INT), parameter :: PNFFT_FREE_F = PNFFT_MALLOC_F
   integer(C_INT), parameter :: PNFFT_FREE_GRAD_F = PNFFT_MALLOC_GRAD_F
+  integer(C_INT), parameter :: PNFFT_FREE_HESSIAN_F = PNFFT_MALLOC_HESSIAN_F
   integer(C_INT), parameter :: PNFFT_COMPUTE_F = PNFFT_MALLOC_F
   integer(C_INT), parameter :: PNFFT_COMPUTE_GRAD_F = PNFFT_MALLOC_GRAD_F
+  integer(C_INT), parameter :: PNFFT_COMPUTE_HESSIAN_F = PNFFT_MALLOC_HESSIAN_F
   integer(C_INT), parameter :: PNFFT_INT = PFFT_INT
   integer(C_INT), parameter :: PNFFT_PTRDIFF_T = PFFT_PTRDIFF_T
   integer(C_INT), parameter :: PNFFT_FLOAT = PFFT_FLOAT
@@ -266,6 +269,12 @@
       type(C_PTR), value :: ths
     end subroutine pnfft_set_grad_f
     
+    subroutine pnfft_set_hessian_f(hessian_f,ths) bind(C, name='pnfft_set_hessian_f')
+      import
+      complex(C_DOUBLE_COMPLEX), dimension(*), intent(out) :: hessian_f
+      type(C_PTR), value :: ths
+    end subroutine pnfft_set_hessian_f
+    
     subroutine pnfft_set_f_hat_real(f_hat,ths) bind(C, name='pnfft_set_f_hat_real')
       import
       real(C_DOUBLE), dimension(*), intent(out) :: f_hat
@@ -283,6 +292,12 @@
       real(C_DOUBLE), dimension(*), intent(out) :: grad_f
       type(C_PTR), value :: ths
     end subroutine pnfft_set_grad_f_real
+    
+    subroutine pnfft_set_hessian_f_real(hessian_f,ths) bind(C, name='pnfft_set_hessian_f_real')
+      import
+      real(C_DOUBLE), dimension(*), intent(out) :: hessian_f
+      type(C_PTR), value :: ths
+    end subroutine pnfft_set_hessian_f_real
     
     subroutine pnfft_set_x(x,ths) bind(C, name='pnfft_set_x')
       import
@@ -313,6 +328,11 @@
       type(C_PTR), value :: ths
     end function pnfft_get_grad_f
     
+    type(C_PTR) function pnfft_get_hessian_f(ths) bind(C, name='pnfft_get_hessian_f')
+      import
+      type(C_PTR), value :: ths
+    end function pnfft_get_hessian_f
+    
     type(C_PTR) function pnfft_get_f_hat_real(ths) bind(C, name='pnfft_get_f_hat_real')
       import
       type(C_PTR), value :: ths
@@ -327,6 +347,11 @@
       import
       type(C_PTR), value :: ths
     end function pnfft_get_grad_f_real
+    
+    type(C_PTR) function pnfft_get_hessian_f_real(ths) bind(C, name='pnfft_get_hessian_f_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfft_get_hessian_f_real
     
     type(C_PTR) function pnfft_get_x(ths) bind(C, name='pnfft_get_x')
       import
@@ -792,6 +817,12 @@
       type(C_PTR), value :: ths
     end subroutine pnfftf_set_grad_f
     
+    subroutine pnfftf_set_hessian_f(hessian_f,ths) bind(C, name='pnfftf_set_hessian_f')
+      import
+      complex(C_FLOAT_COMPLEX), dimension(*), intent(out) :: hessian_f
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_set_hessian_f
+    
     subroutine pnfftf_set_f_hat_real(f_hat,ths) bind(C, name='pnfftf_set_f_hat_real')
       import
       real(C_FLOAT), dimension(*), intent(out) :: f_hat
@@ -809,6 +840,12 @@
       real(C_FLOAT), dimension(*), intent(out) :: grad_f
       type(C_PTR), value :: ths
     end subroutine pnfftf_set_grad_f_real
+    
+    subroutine pnfftf_set_hessian_f_real(hessian_f,ths) bind(C, name='pnfftf_set_hessian_f_real')
+      import
+      real(C_FLOAT), dimension(*), intent(out) :: hessian_f
+      type(C_PTR), value :: ths
+    end subroutine pnfftf_set_hessian_f_real
     
     subroutine pnfftf_set_x(x,ths) bind(C, name='pnfftf_set_x')
       import
@@ -839,6 +876,11 @@
       type(C_PTR), value :: ths
     end function pnfftf_get_grad_f
     
+    type(C_PTR) function pnfftf_get_hessian_f(ths) bind(C, name='pnfftf_get_hessian_f')
+      import
+      type(C_PTR), value :: ths
+    end function pnfftf_get_hessian_f
+    
     type(C_PTR) function pnfftf_get_f_hat_real(ths) bind(C, name='pnfftf_get_f_hat_real')
       import
       type(C_PTR), value :: ths
@@ -853,6 +895,11 @@
       import
       type(C_PTR), value :: ths
     end function pnfftf_get_grad_f_real
+    
+    type(C_PTR) function pnfftf_get_hessian_f_real(ths) bind(C, name='pnfftf_get_hessian_f_real')
+      import
+      type(C_PTR), value :: ths
+    end function pnfftf_get_hessian_f_real
     
     type(C_PTR) function pnfftf_get_x(ths) bind(C, name='pnfftf_get_x')
       import
