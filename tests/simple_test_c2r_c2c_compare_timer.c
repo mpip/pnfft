@@ -48,7 +48,7 @@ int main(int argc, char **argv)
   MPI_Init(&argc, &argv);
   pnfft_init();
 
-  np[0] = 2; np[1] = 2; np[2] = 8;
+  np[0] = 2; np[1] = 2; np[2] = 2;
   N[0] = 64; N[1] = 64; N[2] = 128;
   local_M = N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]);
 
