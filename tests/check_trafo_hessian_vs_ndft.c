@@ -5,13 +5,14 @@
 static void pnfft_perform_guru(
     const ptrdiff_t *N, const ptrdiff_t *n, ptrdiff_t local_M,
     int m, const double *x_max, unsigned pnfft_flags,
-    const int *np, MPI_Comm comm);
+    const int *np, MPI_Comm comm,
+    int verbose);
 
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M,
     int *m, int *window, int *intpol, int *interlacing, int *hessian_ik,
-    double *x_max, int *np);
+    double *x_max, int *np, int *verbose);
 static void init_random_x(
     const double *lo, const double *up,
     const double *x_max, ptrdiff_t M,
@@ -27,7 +28,7 @@ static double random_number_less_than_one(
 
 
 int main(int argc, char **argv){
-  int np[3], m, window, interlacing, hessian_ik;
+  int np[3], m, window, interlacing, hessian_ik, verbose;
   ptrdiff_t N[3], n[3], local_M;
   double x_max[3];
   
@@ -44,10 +45,11 @@ int main(int argc, char **argv){
   hessian_ik = 0;
   x_max[0] = x_max[1] = x_max[2] = 0.5;
   np[0]=2; np[1]=2; np[2]=2;
+  verbose=0;
   
   /* set values by commandline */
   int intpol = -1;
-  init_parameters(argc, argv, N, n, &local_M, &m, &window, &intpol, &interlacing, &hessian_ik, x_max, np);
+  init_parameters(argc, argv, N, n, &local_M, &m, &window, &intpol, &interlacing, &hessian_ik, x_max, np, &verbose);
 
   /* if M or n are set to zero, we choose nice values */
   local_M = (local_M==0) ? N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]) : local_M;
@@ -116,7 +118,7 @@ int main(int argc, char **argv){
 //  window_flag |= PNFFT_PRE_CUB_PSI;
 
   /* calculate parallel NFFT */
-  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag| hessian_ik_flag, np, MPI_COMM_WORLD);
+  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag| hessian_ik_flag, np, MPI_COMM_WORLD, verbose);
 
   /* free mem and finalize */
   pnfft_cleanup();
@@ -128,7 +130,8 @@ int main(int argc, char **argv){
 static void pnfft_perform_guru(
     const ptrdiff_t *N, const ptrdiff_t *n, ptrdiff_t local_M,
     int m, const double *x_max, unsigned pnfft_flags,
-    const int *np, MPI_Comm comm
+    const int *np, MPI_Comm comm,
+    int verbose
     )
 {
   int myrank;
@@ -164,11 +167,26 @@ static void pnfft_perform_guru(
 
   pnfft_init_f_hat_3d(N, local_N, local_N_start, PNFFT_TRANSPOSED_NONE,
       f_hat);
+  
+if(verbose){
+  ptrdiff_t l=0;
+  for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
+    for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
+      for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, l++)
+        f_hat[l] = (k0==-1 && k1==0 && k2==-1) ? 2.0 : 0.0;
+}
 
   srand(myrank);
   init_random_x(lower_border, upper_border, x_max, local_M,
       x);
 
+for(int t=0; t<3; t++)
+  x[t] = 0.0;
+  
+  if(verbose)
+    for(ptrdiff_t j=0; j<local_M; j++)
+      fprintf(stderr, "x(%td) = [%.2e, %.2e, %.2e]\n", j, x[3*j], x[3*j+1], x[3*j+2]);
+    
   time = -MPI_Wtime();
   pnfft_trafo(pnfft);
   time += MPI_Wtime();
@@ -193,6 +211,9 @@ static void pnfft_perform_guru(
   pnfft_direct_trafo(pnfft);
   time += MPI_Wtime();
 
+  if(verbose)
+    for(ptrdiff_t j=0; j<6*local_M; j++) fprintf(stderr, "hessian(%d, %td) = %.2e + %.2e * I\n", myrank, j, creal(hessian_f[j]), cimag(hessian_f[j]));
+
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
   pfft_printf(comm, "pnfft_direct_trafo with Hessian needs %6.2e s\n", time_max);
@@ -212,7 +233,7 @@ static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M,
     int *m, int *window, int *intpol, int *interlacing, int *hessian_ik,
-    double *x_max, int *np
+    double *x_max, int *np, int *verbose
     )
 {
   pfft_get_args(argc, argv, "-pnfft_local_M", 1, PFFT_PTRDIFF_T, M);
@@ -225,6 +246,7 @@ static void init_parameters(
   pfft_get_args(argc, argv, "-pnfft_interlacing", 1, PFFT_INT, interlacing);
   pfft_get_args(argc, argv, "-pnfft_hessian_ik", 1, PFFT_INT, hessian_ik);
   pfft_get_args(argc, argv, "-pnfft_x_max", 3, PFFT_DOUBLE, x_max);
+  pfft_get_args(argc, argv, "-pnfft_verbose", 1, PFFT_INT, verbose);
 }
 
 
@@ -251,7 +273,7 @@ static void compare_hessian_f(
 {
   double error, error_max;
 
-  for(int t=0; t<6){
+  for(int t=0; t<6; t++){
     error = 0;
     for(ptrdiff_t j=0; j<local_M; j++)
       if( cabs(hessian_f1[3*j]-hessian_f2[3*j]) > error)

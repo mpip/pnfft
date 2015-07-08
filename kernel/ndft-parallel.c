@@ -50,6 +50,10 @@ static void loop_over_particles_adj(
 //     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
 //     INT *sorted_index);
 
+static int is_hermitian(
+  INT k0, INT k1, INT k2,
+  INT N0, INT N1, INT N2);
+
 static PNX(plan) mkplan(
     void);
 
@@ -133,6 +137,39 @@ static void pre_dpsi_tensor_kaiser_bessel(
     const INT *n, const R *b, int m, int cutoff,
     const R *x, const R *floor_nx, const R *pre_psi,
     R *pre_dpsi);
+
+static void pre_ddpsi_tensor(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, R *spline_coeffs,
+    int intpol_order, INT intpol_num_nodes, R **intpol_tables_ddpsi,
+    const R *pre_psi, const R *pre_dpsi, unsigned pnfft_flags,
+    R *pre_ddpsi);
+static void pre_ddpsi_tensor_direct(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, R *spline_coeffs, const R *pre_psi, const R *pre_dpsi,
+    unsigned pnfft_flags,
+    R *pre_ddpsi);
+static void pre_ddpsi_tensor_gaussian(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, const R *fg_psi,
+    R *fg_ddpsi);
+static void pre_ddpsi_tensor_bspline(
+    const INT *n, int m, int cutoff,
+    const R *x, const R *floor_nx, R *spline_coeffs,
+    R *pre_ddpsi);
+static void pre_ddpsi_tensor_sinc_power(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, const R *pre_psi, const R *pre_dpsi,
+    R *pre_ddpsi);
+static void pre_ddpsi_tensor_bessel_i0(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx,
+    R *pre_ddpsi);
+static void pre_ddpsi_tensor_kaiser_bessel(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, const R *pre_psi, const R *pre_dpsi,
+    R *pre_ddpsi);
+
 static void sort_nodes_for_better_cache_handle(
     int d, const INT *n, int m, INT local_x_num, const R *local_x,
     INT *ar_x);
@@ -145,53 +182,61 @@ static void get_mpi_cart_dims_3d(
 static int compare_INT(
     const void* a, const void* b);
 
-
 static R window_bessel_i0_1d(
     R x, INT n, R b, int m);
 static R window_bessel_i0_derivative_1d(
+    R x, INT n, R b, int m);
+static R window_bessel_i0_second_derivative_1d(
     R x, INT n, R b, int m);
 
 static R kaiser_bessel_1d(
     R x, INT n, R b, int m);
 static R kaiser_bessel_derivative_1d(
     R x, INT n, R b, int m, R psi);
+static R kaiser_bessel_second_derivative_1d(
+    R x, INT n, R b, int m, R psi, R dpsi);
 
 
 static void init_intpol_table_psi(
     INT num_nodes_per_interval, int intpol_order, int cutoff,
-    INT n, int m, int dim,
-    const PNX(plan) wind_param,
-    R *table);
-static void init_intpol_table_dpsi(
-    INT num_nodes_per_interval, int intpol_order, int cutoff,
-    INT n, int m, int dim,
+    INT n, int m, int dim, int derivative,
     const PNX(plan) wind_param,
     R *table);
 static R psi_gaussian(
     R x, INT n, R b);
 static R dpsi_gaussian(
     R x, INT n, R b);
+static R ddpsi_gaussian(
+    R x, INT n, R b);
 static R psi_bspline(
     R x, INT n, int m, R *spline_coeffs);
 static R dpsi_bspline(
+    R x, INT n, int m, R *spline_coeffs);
+static R ddpsi_bspline(
     R x, INT n, int m, R *spline_coeffs);
 static R psi_sinc_power(
     R x, INT n, R b, int m);
 static R dpsi_sinc_power(
     R x, INT n, R b, int m);
+static R ddpsi_sinc_power(
+    R x, INT n, R b, int m);
 static R psi_bessel_i0(
     R x, INT n, R b, int m);
 static R dpsi_bessel_i0(
+    R x, INT n, R b, int m);
+static R ddpsi_bessel_i0(
     R x, INT n, R b, int m);
 static R psi_kaiser(
     R x, INT n, R b, int m);
 static R dpsi_kaiser(
     R x, INT n, R b, int m);
+static R ddpsi_kaiser(
+    R x, INT n, R b, int m);
 
 static void precompute_psi(
-    PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi, 
-    int compute_grad_ad,
-    R* pre_psi, R* pre_dpsi);
+    PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi, R* buffer_ddpsi, 
+    int compute_grad_ad, int compute_hessian_ad,
+    R* pre_psi, R* pre_dpsi, R* pre_ddpsi);
 
 /* TODO: This function calculates the number of minimum samples of the 2-point-Taylor regularized
  * kernel function 1/x to reach a certain relative error 'eps'. Our windows are likely to be nicer,
@@ -275,7 +320,7 @@ static INT calc_intpol_num_nodes(
 
 static void init_intpol_table_psi(
     INT num_nodes_per_interval, int intpol_order, int cutoff,
-    INT n, int m, int dim,
+    INT n, int m, int dim, int derivative,
     const PNX(plan) wind_param,
     R *table
     )
@@ -294,42 +339,38 @@ static void init_intpol_table_psi(
         /* avoid multiple evaluations of psi(...) at the same points */
         if( (k > 0) && (i < (intpol_order+1)/2) )
           table[ind] = table[ind - cutoff*(intpol_order+1) + 1];
-        else
-          table[ind] = PNX(psi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n);
+        else {
+          switch(derivative){
+            case 0: table[ind] = PNX(psi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n); break;
+            case 1: table[ind] = PNX(dpsi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n); break;
+            case 2: table[ind] = PNX(ddpsi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n); break;
+          }
+        }
         ++ind;
       }
     }
   }
 }
 
-static void init_intpol_table_dpsi(
-    INT num_nodes_per_interval, int intpol_order, int cutoff,
-    INT n, int m, int dim,
-    const PNX(plan) wind_param,
-    R *table
-    )
-{
-  /* interpolation of "f" at grid point "r" of order
-   * 0: uses f[r]
-   * 1: uses f[r], f[r+1]
-   * 2: uses f[r-1], f[r], f[r+1]
-   * 3: uses f[r-1], f[r], f[r+1], f[r+2]
-   * This equivalent to f[-order/2], ... , f[(order+1)/2]
-   * with integer division. */
-  INT ind=0;
-  for(INT k=0; k<num_nodes_per_interval; k++){
-    for(INT c=0; c<cutoff; c++){
-      for(INT i=-intpol_order/2; i<=(intpol_order+1)/2; i++){
-        /* avoid multiple evaluations of dpsi(...) at the same points */
-        if( (k > 0) && (i < (intpol_order+1)/2) )
-          table[ind] = table[ind - cutoff*(intpol_order+1) + 1];
-        else
-          table[ind] = -PNX(dpsi)(wind_param, dim, (m + (R)(k+i)/num_nodes_per_interval - c)/n);
-        ++ind;
-      }
-    }
-  }
 
+static int is_hermitian(
+  INT k0, INT k1, INT k2,
+  INT N0, INT N1, INT N2
+  )
+{
+  // these have to be zero
+  if ( (k0 == 0 || k0 ==  -N0/2) && (k1 == 0 || k1 ==  -N1/2) && (k2 == 0 || k2 ==  -N2/2) )
+    return 1;
+  
+  // these are redundant. we have to skip them because we always add the two
+  // hermitean coefficients at once and we would otherwise add them twice
+  if ( k1 > 0 && (k2 == 0 || k2 == -N2/2) )
+    return 1;
+  
+  if ( k0 > 0 && (k1 == 0 || k1 == -N1/2) && (k2 == 0 || k2 == -N2/2) )
+    return 1;
+  
+  return 0;
 }
 
 
@@ -372,6 +413,13 @@ void PNX(trafo_A)(
     INT t0 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 1 : 0;
     INT t1 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 2 : 1;
     INT t2 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 0 : 2;
+    
+    INT s0 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 3 : 0;
+    INT s1 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 4 : 1;
+    INT s2 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 1 : 2;
+    INT s3 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 5 : 3;
+    INT s4 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 2 : 4;
+    INT s5 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 0 : 5;
 
     for(INT j=0; j<ths->local_M; j++){
       C exp_x0 = pnfft_cexp(-2.0 * PNFFT_PI * ths->x[3*j+t0] * I);
@@ -382,6 +430,65 @@ void PNX(trafo_A)(
       C exp_kx1_start = pnfft_cexp(-2.0 * PNFFT_PI * local_Np_start[t1] * ths->x[3*j+t1] * I);
       C exp_kx2_start = pnfft_cexp(-2.0 * PNFFT_PI * local_Np_start[t2] * ths->x[3*j+t2] * I);
 
+      if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+        R hessian_f[12] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+        INT m=0;
+        C exp_kx0 = exp_kx0_start;
+        for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
+          C exp_kx1 = exp_kx0 * exp_kx1_start;
+          for(INT k1 = local_Np_start[t1]; k1 < local_Np_start[t1] + local_Np[t1]; k1++){
+            C exp_kx2 = exp_kx1 * exp_kx2_start;
+            for(INT k2 = local_Np_start[t2]; k2 < local_Np_start[t2] + local_Np[t2]; k2++, m++){
+              C bufferTimesExp = buffer[m] * exp_kx2;
+
+              if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
+                if ( ! (k0 == 0 && k1 == 0 && k2 == 0)
+                     &&
+                     ! is_hermitian(k0, k1, k2, ths->N[t0], ths->N[t1], ths->N[t2])
+                   )
+                {
+                  hessian_f[0] += 2 * k0 * k0 * pnfft_creal(bufferTimesExp);
+                  hessian_f[2] += 2 * k0 * k1 * pnfft_creal(bufferTimesExp);
+                  hessian_f[4] += 2 * k0 * k2 * pnfft_creal(bufferTimesExp);
+                  hessian_f[6] += 2 * k1 * k1 * pnfft_creal(bufferTimesExp);
+                  hessian_f[8] += 2 * k1 * k2 * pnfft_creal(bufferTimesExp);
+                  hessian_f[10]+= 2 * k2 * k2 * pnfft_creal(bufferTimesExp);
+                }
+              } else {
+                ((C*)hessian_f)[0] += k0 * k0 * bufferTimesExp;
+                ((C*)hessian_f)[1] += k0 * k1 * bufferTimesExp;
+                ((C*)hessian_f)[2] += k0 * k2 * bufferTimesExp;
+                ((C*)hessian_f)[3] += k1 * k1 * bufferTimesExp;
+                ((C*)hessian_f)[4] += k1 * k2 * bufferTimesExp;
+                ((C*)hessian_f)[5] += k2 * k2 * bufferTimesExp;
+              }
+
+              exp_kx2 *= exp_x2;
+            }
+            exp_kx1 *= exp_x1;
+          }
+          exp_kx0 *= exp_x0;
+        }
+
+        if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
+          ths->hessian_f[6*j+s0] += hessian_f[0];
+          ths->hessian_f[6*j+s1] += hessian_f[2];
+          ths->hessian_f[6*j+s2] += hessian_f[4];
+          ths->hessian_f[6*j+s3] += hessian_f[6];
+          ths->hessian_f[6*j+s4] += hessian_f[8];
+          ths->hessian_f[6*j+s5] += hessian_f[10];
+        } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
+          ((C*)ths->hessian_f)[6*j+s0] += ((C*)hessian_f)[0];
+          ((C*)ths->hessian_f)[6*j+s1] += ((C*)hessian_f)[1];
+          ((C*)ths->hessian_f)[6*j+s2] += ((C*)hessian_f)[2];
+          ((C*)ths->hessian_f)[6*j+s3] += ((C*)hessian_f)[3];
+          ((C*)ths->hessian_f)[6*j+s4] += ((C*)hessian_f)[4];
+          ((C*)ths->hessian_f)[6*j+s5] += ((C*)hessian_f)[5];
+        }
+
+      }
+      
       if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
         R grad_f[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -395,24 +502,16 @@ void PNX(trafo_A)(
               C bufferTimesExp = buffer[m] * exp_kx2;
 
               if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-                if (k0 == 0 && k1 == 0 && k2 == 0)
-                  ths->f[j] += pnfft_creal(buffer[m]);
-                else if ( ! (// these have to be zero
-                             ( (k0 == 0 || k0 ==  -ths->N[t0]/2) &&
-                               (k1 == 0 || k1 ==  -ths->N[t1]/2) &&
-                               (k2 == 0 || k2 ==  -ths->N[t2]/2)    ) ||
-                             // these are redundant. we have to skip them because we always add the two
-                             // hermitean coefficients at once and we would otherwise add them twice
-                             ( k1 > 0 && (k2 == 0 || k2 == -ths->N[t2]/2) ) ||
-                             ( k0 > 0 && (k1 == 0 || k1 == -ths->N[t1]/2) && (k2 == 0 || k2 == -ths->N[t2]/2) ))
-                        ) {
-                  ths->f[j] += 2 * pnfft_creal(bufferTimesExp);
-                  grad_f[0] += k0 * pnfft_cimag(bufferTimesExp);
-                  grad_f[2] += k1 * pnfft_cimag(bufferTimesExp);
-                  grad_f[4] += k2 * pnfft_cimag(bufferTimesExp);
+                if ( ! (k0 == 0 && k1 == 0 && k2 == 0)
+                      &&
+                     ! is_hermitian(k0, k1, k2, ths->N[t0], ths->N[t1], ths->N[t2])
+                    )
+                {
+                  grad_f[0] += 2 * k0 * pnfft_cimag(bufferTimesExp);
+                  grad_f[2] += 2 * k1 * pnfft_cimag(bufferTimesExp);
+                  grad_f[4] += 2 * k2 * pnfft_cimag(bufferTimesExp);
                 }
               } else {
-                ((C*)ths->f)[j] += bufferTimesExp;
                 ((C*)grad_f)[0] += k0 * bufferTimesExp;
                 ((C*)grad_f)[1] += k1 * bufferTimesExp;
                 ((C*)grad_f)[2] += k2 * bufferTimesExp;
@@ -426,16 +525,17 @@ void PNX(trafo_A)(
         }
 
         if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-          ths->grad_f[3*j+t0] += 2 * grad_f[0];
-          ths->grad_f[3*j+t1] += 2 * grad_f[2];
-          ths->grad_f[3*j+t2] += 2 * grad_f[4];
+          ths->grad_f[3*j+t0] += grad_f[0];
+          ths->grad_f[3*j+t1] += grad_f[2];
+          ths->grad_f[3*j+t2] += grad_f[4];
         } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
           ((C*)ths->grad_f)[3*j+t0] += ((C*)grad_f)[0];
           ((C*)ths->grad_f)[3*j+t1] += ((C*)grad_f)[1];
           ((C*)ths->grad_f)[3*j+t2] += ((C*)grad_f)[2];
         }
-
-      } else {
+      }
+      
+      if(ths->compute_flags & PNFFT_COMPUTE_F){
         INT m=0;
         C exp_kx0 = exp_kx0_start;
         for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
@@ -446,15 +546,7 @@ void PNX(trafo_A)(
               if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
                 if (k0 == 0 && k1 == 0 && k2 == 0)
                   ths->f[j] += pnfft_creal(buffer[m]);
-                else if ( ! (// these have to be zero
-                             ( (k0 == 0 || k0 ==  -ths->N[t0]/2) &&
-                               (k1 == 0 || k1 ==  -ths->N[t1]/2) &&
-                               (k2 == 0 || k2 ==  -ths->N[t2]/2)    ) ||
-                             // these are redundant. we have to skip them because we always add the two
-                             // hermitean coefficients at once and we would otherwise add them twice
-                             ( k1 > 0 && (k2 == 0 || k2 == -ths->N[t2]/2) ) ||
-                             ( k0 > 0 && (k1 == 0 || k1 == -ths->N[t1]/2) && (k2 == 0 || k2 == -ths->N[t2]/2) ))
-                        )
+                else if ( ! is_hermitian(k0, k1, k2, ths->N[t0], ths->N[t1], ths->N[t2]) )
                   ths->f[j] += 2 * pnfft_creal(buffer[m] * exp_kx2);
               } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C)
                 ((C*)ths->f)[j] += buffer[m] * exp_kx2;
@@ -480,6 +572,15 @@ void PNX(trafo_A)(
     else if (ths->trafo_flag & PNFFTI_TRAFO_C2C)
       for(INT j=0; j<3*ths->local_M; j++)
         ((C*)ths->grad_f)[j] *= minusTwoPiI;
+  }
+  if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F) {
+    R minusFourPiSqr = -4.0 * PNFFT_SQR( PNFFT_PI );
+    if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
+      for(INT j=0; j<6*ths->local_M; j++)
+        ths->hessian_f[j] *= minusFourPiSqr;
+    else if (ths->trafo_flag & PNFFTI_TRAFO_C2C)
+      for(INT j=0; j<6*ths->local_M; j++)
+        ((C*)ths->hessian_f)[j] *= minusFourPiSqr;
   }
 }
 
@@ -946,7 +1047,7 @@ void PNX(init_precompute_window)(
       ths->intpol_tables_psi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
     for(int t=0; t<ths->d; t++){
       ths->intpol_tables_psi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-      init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, ths,
+      init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 0, ths,
           ths->intpol_tables_psi[t]);
     }
     if( !(ths->pnfft_flags & (PNFFT_GRAD_IK | PNFFT_GRAD_NONE) ) ){
@@ -954,7 +1055,7 @@ void PNX(init_precompute_window)(
         ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
       for(int t=0; t<ths->d; t++){
         ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-        init_intpol_table_dpsi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, ths,
+        init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 1, ths,
             ths->intpol_tables_dpsi[t]);
       }
     }
@@ -986,22 +1087,28 @@ void PNX(precompute_psi)(
 {
   INT size;
   INT *sorted_index = NULL;
-  R *buffer_psi=NULL, *buffer_dpsi=NULL;
+  R *buffer_psi=NULL, *buffer_dpsi=NULL, *buffer_ddpsi=NULL;
   R x[3];
-  int compute_grad_ad;
+  int compute_grad_ad, compute_hessian_ad;
  
   compute_grad_ad = !(ths->pnfft_flags & (PNFFT_GRAD_NONE | PNFFT_GRAD_IK))
                     && (ths->compute_flags & PNFFT_COMPUTE_GRAD_F);
+  compute_hessian_ad = !(ths->pnfft_flags & PNFFT_HESSIAN_AD)
+                    && (ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F);
 
   /* cleanup old precomputations */
   if(ths->pre_psi != NULL)
     PNX(free)(ths->pre_psi);
   if(ths->pre_dpsi != NULL)
     PNX(free)(ths->pre_dpsi);
+  if(ths->pre_ddpsi != NULL)
+    PNX(free)(ths->pre_ddpsi);
   if(ths->pre_psi_il != NULL)
     PNX(free)(ths->pre_psi_il);
   if(ths->pre_dpsi_il != NULL)
     PNX(free)(ths->pre_dpsi_il);
+  if(ths->pre_ddpsi_il != NULL)
+    PNX(free)(ths->pre_ddpsi_il);
 
   if(!(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
     return;
@@ -1012,7 +1119,13 @@ void PNX(precompute_psi)(
     ths->pre_psi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
     if(ths->pnfft_flags & PNFFT_INTERLACED)
       ths->pre_psi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    if(compute_grad_ad){
+    if(compute_hessian_ad){
+      ths->pre_dpsi  = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
+      ths->pre_ddpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
+      if(ths->pnfft_flags & PNFFT_INTERLACED)
+        ths->pre_dpsi_il  = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
+        ths->pre_ddpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
+    } else if(compute_grad_ad){
       ths->pre_dpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
       if(ths->pnfft_flags & PNFFT_INTERLACED)
         ths->pre_dpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
@@ -1024,7 +1137,13 @@ void PNX(precompute_psi)(
     ths->pre_psi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
     if(ths->pnfft_flags & PNFFT_INTERLACED)
       ths->pre_psi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    if(compute_grad_ad){
+    if(compute_hessian_ad){
+      ths->pre_dpsi  = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
+      ths->pre_ddpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
+      if(ths->pnfft_flags & PNFFT_INTERLACED)
+        ths->pre_dpsi_il  = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
+        ths->pre_ddpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
+    } else if(compute_grad_ad){
       ths->pre_dpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
       if(ths->pnfft_flags & PNFFT_INTERLACED)
         ths->pre_dpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
@@ -1041,7 +1160,10 @@ void PNX(precompute_psi)(
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI){
     buffer_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
-    if(compute_grad_ad)
+    if(compute_hessian_ad){
+      buffer_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
+      buffer_ddpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
+    } else if(compute_grad_ad)
       buffer_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
   }
   for(INT p=0; p<ths->local_M; p++){
@@ -1049,8 +1171,8 @@ void PNX(precompute_psi)(
 
     for(int t=0; t<3; t++)
       x[t] = ths->x[ths->d*j+t];
-    precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, compute_grad_ad,
-        ths->pre_psi, ths->pre_dpsi);
+    precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, compute_grad_ad, compute_hessian_ad,
+        ths->pre_psi, ths->pre_dpsi, ths->pre_ddpsi);
 
     if(ths->pnfft_flags & PNFFT_INTERLACED){
       /* shift x by half the mesh width */
@@ -1059,8 +1181,8 @@ void PNX(precompute_psi)(
         if(x[t] >= 0.5)
           x[t] -= 1.0;
       }
-      precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, compute_grad_ad,
-          ths->pre_psi_il, ths->pre_dpsi_il);
+      precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, compute_grad_ad, compute_hessian_ad,
+          ths->pre_psi_il, ths->pre_dpsi_il, ths->pre_ddpsi_il);
     }
   }
 
@@ -1070,12 +1192,14 @@ void PNX(precompute_psi)(
     PNX(free)(buffer_psi);
   if(buffer_dpsi != NULL)
     PNX(free)(buffer_dpsi);
+  if(buffer_ddpsi != NULL)
+    PNX(free)(buffer_ddpsi);
 }
 
 static void precompute_psi(
-    PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi,
-    int compute_grad_ad,
-    R* pre_psi, R* pre_dpsi
+    PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi, R* buffer_ddpsi,
+    int compute_grad_ad, int compute_hessian_ad,
+    R* pre_psi, R* pre_dpsi, R* pre_ddpsi
     )
 {
   int cutoff = ths->cutoff;
@@ -1086,7 +1210,10 @@ static void precompute_psi(
   if(ths->pnfft_flags & PNFFT_PRE_PSI){
     /* shift index to current particle */
     pre_psi += ind * 3 * cutoff;
-    if(compute_grad_ad)
+    if(compute_hessian_ad){
+      pre_dpsi += ind * 3 * cutoff;
+      pre_ddpsi += ind * 3 * cutoff;
+    } else if(compute_grad_ad)
       pre_dpsi += ind * 3 * cutoff;
 
     pre_psi_tensor(
@@ -1095,18 +1222,29 @@ static void precompute_psi(
         ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
         pre_psi);
 
-    if(compute_grad_ad)
+    if( compute_grad_ad || compute_hessian_ad )
       pre_dpsi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
           pre_psi, ths->pnfft_flags,
           pre_dpsi);
+
+    if(compute_hessian_ad)
+      pre_ddpsi_tensor(
+          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
+          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
+          pre_psi, pre_dpsi, ths->pnfft_flags,
+          pre_ddpsi);
   }
   else if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI){
     /* shift index to current particle */
     pre_psi += ind * PNFFT_POW3(cutoff);
-    if(compute_grad_ad)
+
+    if( compute_grad_ad || compute_hessian_ad )
       pre_dpsi += 3 * ind * PNFFT_POW3(cutoff);
+
+    if(compute_hessian_ad)
+      pre_ddpsi += 3 * ind * PNFFT_POW3(cutoff);
 
     pre_psi_tensor(
         ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx,
@@ -1114,15 +1252,23 @@ static void precompute_psi(
         ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
         buffer_psi);
 
-    if(compute_grad_ad)
+    INT m=0;
+    for(INT l0=0; l0<cutoff; l0++){
+      for(INT l1=cutoff; l1<2*cutoff; l1++){
+        R psi_xy  = buffer_psi[l0] * buffer_psi[l1];
+        for(INT l2=2*cutoff; l2<3*cutoff; l2++){
+          pre_psi[m++] = psi_xy * buffer_psi[l2];
+        }
+      }
+    }
+
+    if( compute_grad_ad || compute_hessian_ad ){
         pre_dpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
             ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
             buffer_psi, ths->pnfft_flags,
             buffer_dpsi);
-
-    if(compute_grad_ad){
-      INT m=0;
+        
       INT md=0;
       for(INT l0=0; l0<cutoff; l0++){
         for(INT l1=cutoff; l1<2*cutoff; l1++){
@@ -1130,19 +1276,40 @@ static void precompute_psi(
           R psi_dxy = buffer_dpsi[l0]  * buffer_psi[l1];
           R psi_xdy = buffer_psi[l0]   * buffer_dpsi[l1];
           for(INT l2=2*cutoff; l2<3*cutoff; l2++, md+=3){
-            pre_psi[m++]   = psi_xy  * buffer_psi[l2];
             pre_dpsi[md+0] = psi_dxy * buffer_psi[l2];
             pre_dpsi[md+1] = psi_xdy * buffer_psi[l2];
             pre_dpsi[md+2] = psi_xy  * buffer_dpsi[l2];
           }
         }
       }
-    } else {
-      INT m=0;
-      for(INT l0=0; l0<cutoff; l0++)
-        for(INT l1=cutoff; l1<2*cutoff; l1++)
-          for(INT l2=2*cutoff; l2<3*cutoff; l2++)
-            pre_psi[m++] = buffer_psi[l0] * buffer_psi[l1] * buffer_psi[l2];
+    }
+
+    if(compute_hessian_ad){
+        pre_ddpsi_tensor(
+            ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
+            ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
+            buffer_psi, buffer_dpsi, ths->pnfft_flags,
+            buffer_ddpsi);
+
+      INT mdd=0;
+      for(INT l0=0; l0<cutoff; l0++){
+        for(INT l1=cutoff; l1<2*cutoff; l1++){
+          R psi_xy   = buffer_psi[l0]  * buffer_psi[l1];
+          R psi_dxy  = buffer_dpsi[l0] * buffer_psi[l1];
+          R psi_xdy  = buffer_psi[l0]  * buffer_dpsi[l1];
+          R psi_dxdy = buffer_dpsi[l0] * buffer_dpsi[l1];
+          R psi_ddxy = buffer_ddpsi[l0]* buffer_psi[l1];
+          R psi_xddy = buffer_psi[l0]  * buffer_ddpsi[l1];
+          for(INT l2=2*cutoff; l2<3*cutoff; l2++, mdd+=6){
+            pre_ddpsi[mdd+0] = psi_ddxy * buffer_psi[l2];
+            pre_ddpsi[mdd+1] = psi_dxdy * buffer_psi[l2];
+            pre_ddpsi[mdd+2] = psi_dxy * buffer_dpsi[l2];
+            pre_ddpsi[mdd+3] = psi_xddy * buffer_psi[l2];
+            pre_ddpsi[mdd+4] = psi_xdy * buffer_dpsi[l2];
+            pre_ddpsi[mdd+5] = psi_xy * buffer_ddpsi[l2];
+          }
+        }
+      }
     }
   }
 }
@@ -1156,6 +1323,7 @@ static PNX(plan) mkplan(
   ths->f_hat  = NULL;
   ths->f      = NULL;
   ths->grad_f = NULL;
+  ths->hessian_f = NULL;
   ths->x      = NULL;
   ths->N      = NULL;
   ths->sigma  = NULL;
@@ -1179,8 +1347,10 @@ static PNX(plan) mkplan(
 
   ths->pre_psi  = NULL;
   ths->pre_dpsi = NULL;
+  ths->pre_ddpsi = NULL;
   ths->pre_psi_il  = NULL;
   ths->pre_dpsi_il = NULL;
+  ths->pre_ddpsi_il = NULL;
 
   ths->g1 = NULL;
   ths->g2 = NULL;
@@ -1685,8 +1855,8 @@ static void pre_dpsi_tensor_bspline(
     R u_j = floor_nx[t] - n[t]*x[t];
     for(int s=0; s<cutoff; s++)
       pre_dpsi[cutoff*t+s] = (R)n[t] *
-        ( PNX(bspline)(2*m-1, u_j + (R)s - 1, spline_coeffs)
-          - PNX(bspline)(2*m-1, u_j + (R)s, spline_coeffs) );
+        ( PNX(bspline)(2*m-1, u_j + (R)s, spline_coeffs)
+          - PNX(bspline)(2*m-1, u_j + (R)s - 1, spline_coeffs) );
   }
 }
 
@@ -1702,12 +1872,12 @@ static void pre_dpsi_tensor_sinc_power(
   R u_j, y;
 
   for(int t=0; t<d; t++){
-    u_j =  floor_nx[t] - n[t]*x[t] - m;
+    u_j =  n[t]*x[t] - floor_nx[t] + m;
     for(int s=0; s<cutoff; s++){
-      y =  PNFFT_PI * (u_j + s) / b[t];
+      y =  PNFFT_PI * (u_j - s) / b[t];
       if(pnfft_fabs(y) > PNFFT_EPSILON)
         pre_dpsi[cutoff*t+s] =
-          2.0 * (R)m * PNFFT_PI * (R)n[t] / b[t] * ( 1.0/y - 1.0/pnfft_tan(y) ) * pre_psi[cutoff*t+s];
+          2.0 * (R)m * PNFFT_PI * (R)n[t] / b[t] * ( 1.0/pnfft_tan(y) - 1.0/y ) * pre_psi[cutoff*t+s];
       else
         pre_dpsi[cutoff*t+s] = K(0.0);
     }
@@ -1724,10 +1894,10 @@ static void pre_dpsi_tensor_bessel_i0(
   R u_j;
 
   for(int t=0; t<d; t++){
-    u_j = floor_nx[t] - n[t]*x[t] - m;
+    u_j = n[t]*x[t] - floor_nx[t] + m;
     for(int s=0; s<cutoff; s++)
       pre_dpsi[cutoff*t+s] = window_bessel_i0_derivative_1d(
-          (u_j + s) / n[t], n[t], b[t], m);
+          (u_j - s) / n[t], n[t], b[t], m);
   }
 }
 
@@ -1742,18 +1912,165 @@ static void pre_dpsi_tensor_kaiser_bessel(
   R u_j;
 
   for(int t=0; t<d; t++){
-    u_j =  floor_nx[t] - n[t]*x[t] - m;
+    u_j = n[t]*x[t] - floor_nx[t] + m;
     for(int s=0; s<cutoff; s++)
       pre_dpsi[cutoff*t+s] = kaiser_bessel_derivative_1d(
-          (u_j + s) / n[t],
+          (u_j - s) / n[t],
           n[t], b[t], m, pre_psi[cutoff*t+s]);
   }
 }
 
+/* switch between direct evaluation and interpolation */
+static void pre_ddpsi_tensor(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, R *spline_coeffs,
+    int intpol_order, INT intpol_num_nodes, R **intpol_tables_ddpsi,
+    const R *pre_psi, const R *pre_dpsi, unsigned pnfft_flags,
+    R *pre_ddpsi
+    )
+{
+  if(pnfft_flags & PNFFT_PRE_INTPOL_PSI)
+    pre_tensor_intpol(
+        n, cutoff, x, floor_nx,
+        intpol_order, intpol_num_nodes, intpol_tables_ddpsi,
+        pre_ddpsi);
+  else
+    pre_ddpsi_tensor_direct(
+        n, b, m, cutoff, x, floor_nx, spline_coeffs,
+        pre_psi, pre_dpsi, pnfft_flags,
+        pre_ddpsi);
+}
 
+/* calculate window second derivative */
+static void pre_ddpsi_tensor_direct(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, R *spline_coeffs, const R *pre_psi, const R *pre_dpsi,
+    unsigned pnfft_flags,
+    R *pre_ddpsi
+    )
+{
+  if(pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
+    pre_ddpsi_tensor_gaussian(
+        n, b, m, cutoff, x, floor_nx, pre_psi,
+        pre_ddpsi);
+  else if(pnfft_flags & PNFFT_WINDOW_BSPLINE)
+    pre_ddpsi_tensor_bspline(
+        n, m, cutoff, x, floor_nx, spline_coeffs,
+        pre_ddpsi);
+  else if(pnfft_flags & PNFFT_WINDOW_SINC_POWER)
+    pre_ddpsi_tensor_sinc_power(
+        n, b, m, cutoff, x, floor_nx, pre_psi, pre_dpsi,
+        pre_ddpsi);
+  else if(pnfft_flags & PNFFT_WINDOW_BESSEL_I0)
+    pre_ddpsi_tensor_bessel_i0(
+        n, b, m, cutoff, x, floor_nx,
+        pre_ddpsi);
+  else
+    pre_ddpsi_tensor_kaiser_bessel(
+        n, b, m, cutoff, x, floor_nx, pre_psi, pre_dpsi,
+        pre_ddpsi);
+}
 
+static void pre_ddpsi_tensor_gaussian(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, const R *fg_psi,
+    R *fg_ddpsi
+    )
+{
+  const int d=3;
+  R u_j;
 
+  for(int t=0; t<d; t++){
+    u_j = n[t]*x[t] - floor_nx[t] + m;
+    for(int s=0; s<cutoff; s++)
+      fg_ddpsi[cutoff*t+s] = 2.0*n[t]*n[t]/b[t] * ( 2.0/b[t] * (u_j-s) * (u_j-s) - 1.0 ) * fg_psi[cutoff*t+s];
+  }
+}
 
+static void pre_ddpsi_tensor_bspline(
+    const INT *n, int m, int cutoff,
+    const R *x, const R *floor_nx, R *spline_coeffs,
+    R *pre_ddpsi
+    )
+{
+  const int d=3;
+
+  if(m<9){
+    for(int t=0; t<d; t++){
+      /* Bspline is shifted by m */
+      R dist = n[t]*x[t] - floor_nx[t] - 0.5;
+      for(int s=0; s<cutoff; s++)
+	pre_ddpsi[cutoff*t+s] = (R)n[t] * (R)n[t] * PNX(fast_bspline_dd)(s-1, dist, 2*m);
+    }
+    return;
+  }
+
+  for(int t=0; t<d; t++){
+    /* Bspline is shifted by m */
+    R u_j = n[t]*x[t] - floor_nx[t];
+    for(int s=0; s<cutoff; s++)
+      pre_ddpsi[cutoff*t+s] = (R)n[t] * (R)n[t] *
+        ( PNX(bspline)(2*m-2, u_j - (R)s, spline_coeffs)
+	  - 2.0 * PNX(bspline)(2*m-2, u_j - (R)s - 1, spline_coeffs)
+          + PNX(bspline)(2*m-2, u_j - (R)s - 2, spline_coeffs) );
+  }
+}
+
+/* The factor n of the window cancels with the factor 1/n from matrix D. */
+static void pre_ddpsi_tensor_sinc_power(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, const R *pre_psi, const R *pre_dpsi,
+    R *pre_ddpsi
+    )
+{
+  const int d=3;
+  R u_j, y;
+
+  for(int t=0; t<d; t++){
+    u_j =  n[t]*x[t] - floor_nx[t] + m;
+    for(int s=0; s<cutoff; s++){
+      y =  PNFFT_PI * (u_j - s) / b[t];
+      if(pnfft_fabs(y) > PNFFT_EPSILON)
+	pre_ddpsi[cutoff*t+s] = 2.0 * (R)m * PNFFT_PI * (R)n[t] / b[t] * ( 1.0/pnfft_tan(y) - 1.0/y ) * pre_dpsi[cutoff*t+s]
+	  + 2.0 * (R)m * PNFFT_SQR( PNFFT_PI * (R)n[t] / b[t] ) * ( 1.0/(y*y) - 1.0 - 1.0/PNFFT_SQR(pnfft_tan(y)) ) * pre_psi[cutoff*t+s];
+      else
+	pre_ddpsi[cutoff*t+s] = -2.0 * (R)m * PNFFT_SQR( PNFFT_PI * (R)n[t] / b[t] ) / ( 3.0 * b[t] );
+    }
+  }
+}
+
+static void pre_ddpsi_tensor_bessel_i0(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx,
+    R *pre_ddpsi
+    )
+{
+  const int d=3;
+  R u_j;
+
+  for(int t=0; t<d; t++){
+    u_j = n[t]*x[t] - floor_nx[t] + m;
+    for(int s=0; s<cutoff; s++)
+      pre_ddpsi[cutoff*t+s] = window_bessel_i0_second_derivative_1d(
+          (u_j - s) / n[t], n[t], b[t], m);
+  }
+}
+
+static void pre_ddpsi_tensor_kaiser_bessel(
+    const INT *n, const R *b, int m, int cutoff,
+    const R *x, const R *floor_nx, const R *pre_psi, const R *pre_dpsi,
+    R *pre_ddpsi
+    )
+{
+  const int d=3;
+  R u_j;
+
+  for(int t=0; t<d; t++){
+    u_j =  n[t]*x[t] - floor_nx[t] + m;
+    for(int s=0; s<cutoff; s++)
+      pre_ddpsi[cutoff*t+s] = kaiser_bessel_second_derivative_1d( (u_j - s) / n[t], n[t], b[t], m, pre_psi[cutoff*t+s], pre_dpsi[cutoff*t+s]);
+  }
+}
 
 /**
  * Sort nodes (index) to get better cache utilization during multiplication
@@ -1866,7 +2183,28 @@ static R window_bessel_i0_derivative_1d(
    return 0.0;
 
   /* avoid division by zero */
-  return (d>0) ? 0.5 * b * (R)n * (R)n * x * PNX(bessel_i1)(b*r) / r : PNFFT_SQR(0.5*b*n) * x;
+  return (d>0) ? -0.5 * b * (R)n * (R)n * x * PNX(bessel_i1)(b*r) / r : -PNFFT_SQR(0.5*b*n) * x;
+}
+
+static R window_bessel_i0_second_derivative_1d(
+    R x, INT n, R b, int m
+    )
+{
+  R d = PNFFT_SQR( (R)m ) - PNFFT_SQR( x*n );
+  R r = (d<0) ? pnfft_sqrt(-d) : pnfft_sqrt(d);
+
+  /* Compact support in real space */
+  if(d<0)
+   return 0.0;
+
+  /* avoid division by zero */
+  if(d>0){
+    R y = PNFFT_SQR( (R)n * x );
+    return 0.5 * b * (R)n * (R)n / d * ( b*y*PNX(bessel_i0)(b*r) - PNX(bessel_i1)(b*r)/r * ( y + m*m ) );
+  }
+  else
+    return PNFFT_SQR( b * b * (R)m * (R)n )/16.0 - PNFFT_SQR( b * (R)n )/4.0 ; /* case x=m/n */
+    
 }
 
 static R kaiser_bessel_1d(
@@ -1893,13 +2231,27 @@ static R kaiser_bessel_derivative_1d(
   R r = (d<0) ? pnfft_sqrt(-d) : pnfft_sqrt(d);
 
   if(d < 0) /* use of -d results in change of sign within the brackets */
-    return n*n*x/d * (b*pnfft_cos(b*r)/PNFFT_PI - psi);
+    return n*n*x/d * (psi - b*pnfft_cos(b*r)/PNFFT_PI);
 
   /* regular case d >= 0 */
-  return (d>0) ? n*n*x/d * (b*pnfft_cosh(b*r)/PNFFT_PI - psi) : -n*m*b*b*b/(3.0*PNFFT_PI);
+  return (d>0) ? n*n*x/d * (psi - b*pnfft_cosh(b*r)/PNFFT_PI) : -n*m*b*b*b/(3.0*PNFFT_PI);
 }
 
 
+static R kaiser_bessel_second_derivative_1d(
+    R x, INT n, R b, int m, R psi, R dpsi
+    )
+{
+  /* TODO: try to avoid case d<0, since in theory d >= 0 */
+  R d = PNFFT_SQR( (R)m ) - PNFFT_SQR( x*n );
+  R r = (d<0) ? pnfft_sqrt(-d) : pnfft_sqrt(d);
+  
+  if(d < 0)
+    return 3.0*n*n*x*dpsi/d + n*n*psi/d*( 1.0 + PNFFT_SQR(b*n*x) ) - b*n*n/(PNFFT_PI*d)*pnfft_cos(b*r);
+  
+  /* regular case d >= 0 */
+  return (d>0) ? 3.0*n*n*x*dpsi/d + n*n*psi/d*( 1.0 + PNFFT_SQR(b*n*x) ) - b*n*n/(PNFFT_PI*d)*pnfft_cosh(b*r) : b*PNFFT_SQR(b*n)/(15.0*PNFFT_PI)*(PNFFT_SQR(b*m)-5.0);
+}
 
 
 R PNX(psi)(
@@ -1934,6 +2286,21 @@ R PNX(dpsi)(
     return dpsi_kaiser(x, ths->n[dim], ths->b[dim], ths->m);
 }
 
+R PNX(ddpsi)(
+    const PNX(plan) ths, int dim, R x
+    )
+{
+  if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
+    return ddpsi_gaussian(x, ths->n[dim], ths->b[dim]);
+  else if(ths->pnfft_flags & PNFFT_WINDOW_BSPLINE)
+    return ddpsi_bspline(x, ths->n[dim], ths->m, ths->spline_coeffs);
+  else if(ths->pnfft_flags & PNFFT_WINDOW_SINC_POWER)
+    return ddpsi_sinc_power(x, ths->n[dim], ths->b[dim], ths->m);
+  else if(ths->pnfft_flags & PNFFT_WINDOW_BESSEL_I0)
+    return ddpsi_bessel_i0(x, ths->n[dim], ths->b[dim], ths->m);
+  else
+    return ddpsi_kaiser(x, ths->n[dim], ths->b[dim], ths->m);
+}
 
 
 static R psi_gaussian(
@@ -1947,7 +2314,15 @@ static R dpsi_gaussian(
     R x, INT n, R b
     )
 {
-  return 2.0 * n/b * n*x * pnfft_exp( -PNFFT_SQR(n*x)/b ) / pnfft_sqrt(PNFFT_PI*b);
+  return -2.0 * n/b * n*x * pnfft_exp( -PNFFT_SQR(n*x)/b ) / pnfft_sqrt(PNFFT_PI*b);
+}
+
+static R ddpsi_gaussian(
+    R x, INT n, R b
+    )
+{
+  R y = PNFFT_SQR(n*x)/b;
+  return 2.0 * n/b * n * pnfft_exp( -y ) / pnfft_sqrt(PNFFT_PI*b) * ( 2.0*y - 1.0 );
 }
 
 static R psi_bspline(
@@ -1963,8 +2338,18 @@ static R dpsi_bspline(
     )
 {
   /* Bspline is shifted by m */
-  return (R)n *( PNX(bspline)(2*m-1, n*x + m - 1, spline_coeffs)
-      - PNX(bspline)(2*m-1, n*x + m, spline_coeffs) );
+    return (R)n *( PNX(bspline)(2*m-1, n*x + m, spline_coeffs)
+      - PNX(bspline)(2*m-1, n*x + m - 1, spline_coeffs) );
+}
+
+static R ddpsi_bspline(
+    R x, INT n, int m, R *spline_coeffs
+    )
+{
+  /* Bspline is shifted by m */
+  return (R)n * (R)n *( PNX(bspline)(2*m-2, n*x + m, spline_coeffs)
+      - 2.0 * PNX(bspline)(2*m-2, n*x + m - 1, spline_coeffs)
+      + PNX(bspline)(2*m-2, n*x + m - 2, spline_coeffs) );
 }
 
 static R psi_sinc_power(
@@ -1984,9 +2369,21 @@ static R dpsi_sinc_power(
 {
   R y =  PNFFT_PI * n * x / b;
   if(pnfft_fabs(y) > PNFFT_EPSILON)
-    return 2.0 * (R)m * PNFFT_PI * (R)n / b * ( 1.0/y - 1.0/pnfft_tan(y) ) * psi_sinc_power(x, n, b, m);
+    return 2.0 * (R)m * PNFFT_PI * (R)n / b * ( 1.0/pnfft_tan(y) - 1.0/y ) * psi_sinc_power(x, n, b, m);
   else
     return 0.0;
+}
+
+static R ddpsi_sinc_power(
+    R x, INT n, R b, int m
+    )
+{
+  R y =  PNFFT_PI * n * x / b;
+  if(pnfft_fabs(y) > PNFFT_EPSILON)
+    return 2.0 * (R)m * PNFFT_PI * (R)n / b * ( 1.0/pnfft_tan(y) - 1.0/y ) * dpsi_sinc_power(x,n,b,m)
+    + 2.0 * (R)m * PNFFT_SQR( PNFFT_PI * (R)n / b ) * ( -1.0 + 1.0/(y*y) - 1.0/PNFFT_SQR(pnfft_tan(y)) ) * psi_sinc_power(x,n,b,m);
+  else
+    return -2.0 * (R)m /(3.0*b) * PNFFT_SQR( PNFFT_PI * (R)n / b );
 }
 
 static R psi_bessel_i0(
@@ -2003,6 +2400,13 @@ static R dpsi_bessel_i0(
   return window_bessel_i0_derivative_1d(x, n, b, m);
 }
 
+static R ddpsi_bessel_i0(
+    R x, INT n, R b, int m
+    )
+{
+  return window_bessel_i0_second_derivative_1d(x, n, b, m);
+}
+
 static R psi_kaiser(
     R x, INT n, R b, int m
     )
@@ -2016,6 +2420,16 @@ static R dpsi_kaiser(
 {
   return kaiser_bessel_derivative_1d(
       x, n, b, m, kaiser_bessel_1d(x, n, b, m));
+}
+
+static R ddpsi_kaiser(
+    R x, INT n, R b, int m
+    )
+{
+  R psi = kaiser_bessel_1d(x, n, b, m);
+  R dpsi = kaiser_bessel_derivative_1d(x, n, b, m, psi);
+  return kaiser_bessel_second_derivative_1d(
+      x, n, b, m, psi, dpsi);
 }
 
 

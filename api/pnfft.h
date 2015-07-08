@@ -222,6 +222,8 @@
      const PNX(plan) ths, int dim, R x);                                                \
   PNFFT_EXTERN R PNX(dpsi)(                                                             \
       const PNX(plan) ths, int dim, R x);                                               \
+  PNFFT_EXTERN R PNX(ddpsi)(                                                            \
+      const PNX(plan) ths, int dim, R x);                                               \
                                                                                         \
   PNFFT_EXTERN void PNX(vpr_complex)(                                                   \
       C *data, INT N, const char *name, MPI_Comm comm);                                 \
@@ -318,15 +320,19 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_GRAD_IK          (1U<< 19)
 #define PNFFT_GRAD_NONE        (1U<< 20) /* turn off gradient NFFT and save memory for buffers */
 
+#define PNFFT_HESSIAN_NONE     (0U) /* turn off Hessian NFFT and save memory for buffers */
+#define PNFFT_HESSIAN_AD       (1U<< 21)
+#define PNFFT_HESSIAN_IK       (1U<< 22)
+
 /* enable some optimizations for real inputs */
-#define PNFFT_REAL_F           (1U<< 21)
+#define PNFFT_REAL_F           (1U<< 23)
 
 /* default window function is Kaiser-Bessel */
 #define PNFFT_WINDOW_KAISER_BESSEL  (0U)
-#define PNFFT_WINDOW_GAUSSIAN       (1U<< 22)
-#define PNFFT_WINDOW_BSPLINE        (1U<< 23)
-#define PNFFT_WINDOW_SINC_POWER     (1U<< 24)
-#define PNFFT_WINDOW_BESSEL_I0      (1U<< 25)
+#define PNFFT_WINDOW_GAUSSIAN       (1U<< 24)
+#define PNFFT_WINDOW_BSPLINE        (1U<< 25)
+#define PNFFT_WINDOW_SINC_POWER     (1U<< 26)
+#define PNFFT_WINDOW_BESSEL_I0      (1U<< 27)
 
 
 #define PNFFT_PRE_INTPOL_PSI ((PNFFT_PRE_CONST_PSI| PNFFT_PRE_LIN_PSI| PNFFT_PRE_QUAD_PSI| PNFFT_PRE_CUB_PSI))

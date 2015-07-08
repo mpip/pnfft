@@ -188,8 +188,10 @@ typedef struct PNX(plan_s){
 
   R *pre_psi;                 /**< Precomputed window function values              */
   R *pre_dpsi;                /**< Precomputed window function derivatives         */
+  R *pre_ddpsi;               /**< Precomputed window function 2nd derivatives     */
   R *pre_psi_il;              /**< Precomputed window function values, interlaced  */
   R *pre_dpsi_il;             /**< Precomputed window function derivatives, interlaced */
+  R *pre_ddpsi_il;            /**< Precomputed window function 2nd derivatives, interlaced */
                                                                                      
   unsigned pnfft_flags;        /**< Flags for precomputation, (de)allocation,        
                                    and FFTW usage                                  */
@@ -214,6 +216,7 @@ typedef struct PNX(plan_s){
   INT intpol_num_nodes;       /**< number of sampled points for interpolation      */
   R **intpol_tables_psi;      /**< sampled values of window functions              */
   R **intpol_tables_dpsi;     /**< sampled values of window function derivatives   */
+  R **intpol_tables_ddpsi;    /**< sampled values of window function 2nd derivatives */
                                                                                      
   MPI_Comm comm_cart;         /**< 2d or 3d Cartesian communicator                 */
   int np[3];                  /**< Size of Cartesian communicator                  */
