@@ -9,7 +9,7 @@
 
 void message(char *string, MPI_Comm comm);
 
-static void init_equispaced_x(const ptrdiff_t *N, const double *lo, const double *up, double *x);
+// static void init_equispaced_x(const ptrdiff_t *N, const double *lo, const double *up, double *x);
 static void init_input(const ptrdiff_t *N, const ptrdiff_t *local_N, const ptrdiff_t *local_N_start, double complex *data);
 static double compare_complex_real(const ptrdiff_t *local_N_c2r,
     const double complex *data_c2c, const double *data_c2r,
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
   f_c2c     = pnfft_get_f(plan_c2c);
   x_c2c     = pnfft_get_x(plan_c2c);
   f_hat_c2r = pnfft_get_f_hat(plan_c2r);
-  f_c2r     = pnfft_get_f(plan_c2r);
+  f_c2r     = pnfft_get_f_real(plan_c2r);
   x_c2r     = pnfft_get_x(plan_c2r);
 
   /* Initialize Fourier coefficients with random numbers */
@@ -185,29 +185,29 @@ static double compare_complex_real(const ptrdiff_t *local_N_c2r,
   return glob_max_err;
 }
 
-static void init_equispaced_x(
-    const ptrdiff_t *N, const double *lo, const double *up,
-    double *x
-    )
-{
-  /* enter your code here and call make when you are finished */
-
-  ptrdiff_t local_N[3], local_N_start[3], m=0;
-  for(int t=0; t<3; t++){
-    local_N[t] = ((up[t]-lo[t]) * N[t]);
-    local_N_start[t] = lo[t] * N[t];
-  }
-
-  m=0;
-  for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
-    for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
-      for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, m++){
-        x[3*m+0] = (double) k0 / N[0];
-        x[3*m+1] = (double) k1 / N[1];
-        x[3*m+2] = (double) k2 / N[2];
-      }
-}
-
+// static void init_equispaced_x(
+//     const ptrdiff_t *N, const double *lo, const double *up,
+//     double *x
+//     )
+// {
+//   /* enter your code here and call make when you are finished */
+// 
+//   ptrdiff_t local_N[3], local_N_start[3], m=0;
+//   for(int t=0; t<3; t++){
+//     local_N[t] = ((up[t]-lo[t]) * N[t]);
+//     local_N_start[t] = lo[t] * N[t];
+//   }
+// 
+//   m=0;
+//   for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
+//     for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
+//       for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, m++){
+//         x[3*m+0] = (double) k0 / N[0];
+//         x[3*m+1] = (double) k1 / N[1];
+//         x[3*m+2] = (double) k2 / N[2];
+//       }
+// }
+// 
 
 static double compare_c2c_c2r(const ptrdiff_t *local_N_c, const ptrdiff_t *local_N_r, const pfft_complex *data_c, const pfft_complex *data_r, MPI_Comm comm)
 {

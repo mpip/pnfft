@@ -9,9 +9,6 @@ static void pnfft_perform_guru(
     const int *np, MPI_Comm comm);
 
 static void init_input(const ptrdiff_t *N, const ptrdiff_t *local_N, const ptrdiff_t *local_N_start, double complex *data);
-static double compare_f(const ptrdiff_t local_M,
-    const double *data1, const double *data,
-    MPI_Comm comm);
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *local_M,
@@ -92,9 +89,8 @@ static void pnfft_perform_guru(
     )
 {
   int myrank;
-  double local_sum = 0, time, time_max;
+  double time, time_max;
   MPI_Comm comm_cart_2d;
-  double f_hat_sum;
 
   ptrdiff_t local_N_c2c[3], local_N_start_c2c[3];
   double lower_border_c2c[3], upper_border_c2c[3];
@@ -137,7 +133,7 @@ static void pnfft_perform_guru(
   f_c2c     = pnfft_get_f(plan_c2c);
   x_c2c     = pnfft_get_x(plan_c2c);
   f_hat_c2r = pnfft_get_f_hat(plan_c2r);
-  f_c2r     = pnfft_get_f(plan_c2r);
+  f_c2r     = pnfft_get_f_real(plan_c2r);
   x_c2r     = pnfft_get_x(plan_c2r);
 
   /* Initialize Fourier coefficients with random numbers */

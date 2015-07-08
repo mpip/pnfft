@@ -17,10 +17,11 @@ static void vpr_complex(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n,
-    int *m, int *window, int *np);
+    int *m, int *window, int *np,
+    int *verb);
 
 int main(int argc, char **argv){
-  int np[3], m, window;
+  int np[3], m, window, verbose;
   unsigned window_flag;
   ptrdiff_t N[3], n[3], local_M;
   ptrdiff_t local_N[3], local_N_start[3];
@@ -41,9 +42,10 @@ int main(int argc, char **argv){
   x_max[0] = x_max[1] = x_max[2] = 0.5;
   window = 4;
   np[0]=2; np[1]=2; np[2]=2;
+  verbose=0;
   
   /* set parameters by command line */
-  init_parameters(argc, argv, N, n, &m, &window, np);
+  init_parameters(argc, argv, N, n, &m, &window, np, &verbose);
 
   /* if n is set to zero, we choose nice values */
   for(int t=0; t<3; t++)
@@ -74,6 +76,11 @@ int main(int argc, char **argv){
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_window *),\n");
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
+  if(verbose)
+    pfft_printf(MPI_COMM_WORLD, "* with verbose outputs");
+  else
+    pfft_printf(MPI_COMM_WORLD, "* with non-verbose outputs ");
+  pfft_printf(MPI_COMM_WORLD, " (change with -pnfft_verbose *)\n");
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 
   /* create three-dimensional process grid of size np[0] x np[1] x np[2], if possible */
@@ -109,15 +116,17 @@ int main(int argc, char **argv){
       x);
 
   /* print input Fourier coefficents */
-//   vpr_complex(comm_cart_3d, 8, f_hat,
-//       "Input Fourier coefficients on process 1:");
+  if(verbose)
+    vpr_complex(comm_cart_3d, 8, f_hat,
+        "Input Fourier coefficients on process 1:");
 
   /* execute parallel NFFT */
   pnfft_trafo(pnfft);
 
   /* print NFFT results */
-//   vpr_complex(comm_cart_3d, 8, f,
-//       "PNFFT Results on process 1:");
+  if(verbose)
+    vpr_complex(comm_cart_3d, 8, f,
+        "PNFFT Results on process 1:");
 
   /* execute parallel adjoint NFFT */
   pnfft_adj(pnfft);
@@ -127,8 +136,9 @@ int main(int argc, char **argv){
     f_hat[k] /= (N[0]*N[1]*N[2]);
 
   /* print output Fourier coefficents */
-//   vpr_complex(comm_cart_3d, 8, f_hat,
-//       "Fourier coefficients after one forward and backward PNFFT on process 1:");
+  if(verbose) 
+    vpr_complex(comm_cart_3d, 8, f_hat,
+        "Fourier coefficients after one forward and backward PNFFT on process 1:");
 
   /* calculate norm of Fourier coefficients for calculation of relative error */ 
   local_f_hat_sum = 0.0;
@@ -236,7 +246,8 @@ static void init_equispaced_x(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n,
-    int *m, int *window, int *np
+    int *m, int *window, int *np,
+    int *verbose
     )
 {
   pfft_get_args(argc, argv, "-pnfft_N", 3, PFFT_PTRDIFF_T, N);
@@ -244,5 +255,6 @@ static void init_parameters(
   pfft_get_args(argc, argv, "-pnfft_np", 3, PFFT_INT, np);
   pfft_get_args(argc, argv, "-pnfft_m", 1, PFFT_INT, m);
   pfft_get_args(argc, argv, "-pnfft_window", 1, PFFT_INT, window);
+  pfft_get_args(argc, argv, "-pnfft_verbose", 1, PFFT_INT, verbose);
 }
 

@@ -126,13 +126,13 @@ static void perform_pnfft_adj_guru(
 
   /* get data pointers */
   f_hat = pnfft_get_f_hat(pnfft);
-  f      = pnfft_get_f(pnfft);
+  f      = pnfft_get_f_real(pnfft);
   x      = pnfft_get_x(pnfft);
 
   /* initialize Fourier coefficients */
   srand(1);
   pnfft_init_f(local_M/2,
-      f);
+      (pnfft_complex*) f);
 
   /* initialize nonequispaced nodes */
   srand(myrank);
