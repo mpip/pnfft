@@ -387,12 +387,8 @@ void PNX(trafo_A)(
 
   if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
     for(INT j=0; j<ths->local_M; j++)  ths->f[j] = 0;
-    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F)
-      for(INT j=0; j<3*ths->local_M; j++)  ths->grad_f[j] = 0;
   } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
     for(INT j=0; j<ths->local_M; j++)  ((C*)ths->f)[j] = 0;
-    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F)
-      for(INT j=0; j<3*ths->local_M; j++)  ((C*)ths->grad_f)[j] = 0;
   }
 
   for(int pid=0; pid<np_total; pid++){
@@ -472,19 +468,19 @@ void PNX(trafo_A)(
         }
 
         if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-          ths->hessian_f[6*j+s0] += hessian_f[0];
-          ths->hessian_f[6*j+s1] += hessian_f[2];
-          ths->hessian_f[6*j+s2] += hessian_f[4];
-          ths->hessian_f[6*j+s3] += hessian_f[6];
-          ths->hessian_f[6*j+s4] += hessian_f[8];
-          ths->hessian_f[6*j+s5] += hessian_f[10];
+          ths->hessian_f[6*j+s0] = hessian_f[0];
+          ths->hessian_f[6*j+s1] = hessian_f[2];
+          ths->hessian_f[6*j+s2] = hessian_f[4];
+          ths->hessian_f[6*j+s3] = hessian_f[6];
+          ths->hessian_f[6*j+s4] = hessian_f[8];
+          ths->hessian_f[6*j+s5] = hessian_f[10];
         } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
-          ((C*)ths->hessian_f)[6*j+s0] += ((C*)hessian_f)[0];
-          ((C*)ths->hessian_f)[6*j+s1] += ((C*)hessian_f)[1];
-          ((C*)ths->hessian_f)[6*j+s2] += ((C*)hessian_f)[2];
-          ((C*)ths->hessian_f)[6*j+s3] += ((C*)hessian_f)[3];
-          ((C*)ths->hessian_f)[6*j+s4] += ((C*)hessian_f)[4];
-          ((C*)ths->hessian_f)[6*j+s5] += ((C*)hessian_f)[5];
+          ((C*)ths->hessian_f)[6*j+s0] = ((C*)hessian_f)[0];
+          ((C*)ths->hessian_f)[6*j+s1] = ((C*)hessian_f)[1];
+          ((C*)ths->hessian_f)[6*j+s2] = ((C*)hessian_f)[2];
+          ((C*)ths->hessian_f)[6*j+s3] = ((C*)hessian_f)[3];
+          ((C*)ths->hessian_f)[6*j+s4] = ((C*)hessian_f)[4];
+          ((C*)ths->hessian_f)[6*j+s5] = ((C*)hessian_f)[5];
         }
 
       }
@@ -525,13 +521,13 @@ void PNX(trafo_A)(
         }
 
         if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-          ths->grad_f[3*j+t0] += grad_f[0];
-          ths->grad_f[3*j+t1] += grad_f[2];
-          ths->grad_f[3*j+t2] += grad_f[4];
+          ths->grad_f[3*j+t0] = grad_f[0];
+          ths->grad_f[3*j+t1] = grad_f[2];
+          ths->grad_f[3*j+t2] = grad_f[4];
         } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
-          ((C*)ths->grad_f)[3*j+t0] += ((C*)grad_f)[0];
-          ((C*)ths->grad_f)[3*j+t1] += ((C*)grad_f)[1];
-          ((C*)ths->grad_f)[3*j+t2] += ((C*)grad_f)[2];
+          ((C*)ths->grad_f)[3*j+t0] = ((C*)grad_f)[0];
+          ((C*)ths->grad_f)[3*j+t1] = ((C*)grad_f)[1];
+          ((C*)ths->grad_f)[3*j+t2] = ((C*)grad_f)[2];
         }
       }
       
@@ -810,11 +806,6 @@ PNX(plan) PNX(init_internal)(
   PNX(plan) ths;
 
   /* TODO: apply some parameter checks */
-  
-  if(pnfft_flags & PNFFT_GRAD_IK && pnfft_flags & PNFFT_GRAD_NONE){
-    PX(printf)(comm_cart, "!!! Warning: GRAD_IK and GRAD_NONE can not be used together. Using GRAD_IK for this plan !!!\n");
-    pnfft_flags &=  (~PNFFT_GRAD_NONE);
-  }
 
   if(pnfft_flags & PNFFT_PRE_PSI && pnfft_flags & PNFFT_PRE_FULL_PSI){
     PX(printf)(comm_cart, "!!! Warning: PRE_PSI and PRE_FULL_PSI can not be used together. Using PRE_PSI for this plan !!!\n");
@@ -1050,13 +1041,26 @@ void PNX(init_precompute_window)(
       init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 0, ths,
           ths->intpol_tables_psi[t]);
     }
-    if( !(ths->pnfft_flags & (PNFFT_GRAD_IK | PNFFT_GRAD_NONE) ) ){
-      if(ths->intpol_tables_dpsi == NULL)
-        ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
-      for(int t=0; t<ths->d; t++){
-        ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-        init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 1, ths,
-            ths->intpol_tables_dpsi[t]);
+
+    if( ths->pnfft_flags & PNFFT_DIFF_AD ){
+      if( ths->pnfft_flags & (PNFFT_GRAD | PNFFT_HESSIAN) ){
+        if(ths->intpol_tables_dpsi == NULL)
+          ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
+        for(int t=0; t<ths->d; t++){
+          ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
+          init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 1, ths,
+              ths->intpol_tables_dpsi[t]);
+        }
+      }
+
+      if( ths->pnfft_flags & PNFFT_HESSIAN ){
+        if(ths->intpol_tables_ddpsi == NULL)
+          ths->intpol_tables_ddpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
+        for(int t=0; t<ths->d; t++){
+          ths->intpol_tables_ddpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
+          init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 2, ths,
+              ths->intpol_tables_ddpsi[t]);
+        }
       }
     }
   }
@@ -1091,9 +1095,9 @@ void PNX(precompute_psi)(
   R x[3];
   int compute_grad_ad, compute_hessian_ad;
  
-  compute_grad_ad = !(ths->pnfft_flags & (PNFFT_GRAD_NONE | PNFFT_GRAD_IK))
+  compute_grad_ad = (ths->pnfft_flags & PNFFT_DIFF_AD)
                     && (ths->compute_flags & PNFFT_COMPUTE_GRAD_F);
-  compute_hessian_ad = !(ths->pnfft_flags & PNFFT_HESSIAN_AD)
+  compute_hessian_ad = (ths->pnfft_flags & PNFFT_DIFF_AD)
                     && (ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F);
 
   /* cleanup old precomputations */
@@ -1363,6 +1367,7 @@ static PNX(plan) mkplan(
   ths->intpol_num_nodes = 0;
   ths->intpol_tables_psi  = NULL;
   ths->intpol_tables_dpsi = NULL;
+  ths->intpol_tables_ddpsi = NULL;
 
   ths->timer_trafo = PNX(mktimer)();
   ths->timer_adj   = PNX(mktimer)();
@@ -1471,7 +1476,7 @@ void PNX(malloc_hessian_f)(
   if( ~pnfft_flags & PNFFT_MALLOC_HESSIAN_F )
     return;
 
-  ths->hessian_f = (ths->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * 12 * (size_t) ths->d*ths->local_M) : NULL;
+  ths->hessian_f = (ths->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * 2 * (size_t) 6*ths->local_M) : NULL;
   ths->pnfft_flags |= PNFFT_MALLOC_HESSIAN_F;
   ths->compute_flags |= PNFFT_COMPUTE_HESSIAN_F;
 }
@@ -2486,7 +2491,7 @@ static int compare_INT(
 // }
 
 
-void PNX(trafo_B_grad_ik)(
+void PNX(trafo_B_strided)(
     PNX(plan) ths, R *f, INT offset, INT stride, int interlaced
     )
 {
@@ -2595,7 +2600,7 @@ void PNX(trafo_B_grad_ik)(
 
 
 
-void PNX(trafo_B_grad_ad)(
+void PNX(trafo_B_ad)(
     PNX(plan) ths, int interlaced
     )
 {
@@ -2787,7 +2792,7 @@ static void loop_over_particles_trafo(
   const int cutoff = ths->cutoff;
   INT j, m0, u_j[3];
   R floor_nx_j[3];
-  R *pre_psi = NULL, *pre_dpsi = NULL;
+  R *pre_psi = NULL, *pre_dpsi = NULL, *pre_ddpsi = NULL;
   R x[3];
 #if PNFFT_ENABLE_DEBUG
   R rsum=0.0, rsum_derive=0.0, grsum, grsum_derive;
@@ -2795,8 +2800,10 @@ static void loop_over_particles_trafo(
 
   if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F)
+    if(ths->compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F))
       pre_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
+    if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F)
+      pre_ddpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   }
   for(INT p=0; p<ths->local_M; p++){
     j = (ths->pnfft_flags & PNFFT_SORT_NODES) ? sorted_index[2*p+1] : p;
@@ -2838,6 +2845,14 @@ static void loop_over_particles_trafo(
         for(int t=0; t<ths->d; t++)
           ((C*)ths->grad_f)[ths->d*j+t] = 0;
     }
+    if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
+        for(int t=0; t<6; t++)
+          ths->hessian_f[6*j+t] = 0;
+      else
+        for(int t=0; t<ths->d; t++)
+          ((C*)ths->hessian_f)[6*j+t] = 0;
+    }
 
     /* evaluate window on axes */
     if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
@@ -2853,7 +2868,7 @@ static void loop_over_particles_trafo(
         rsum += pnfft_fabs(pre_psi[t]);
 #endif
  
-      if(ths->compute_flags & (PNFFT_COMPUTE_GRAD_F)){
+      if(ths->compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F)){
         pre_dpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
             ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
@@ -2866,6 +2881,14 @@ static void loop_over_particles_trafo(
           for(int t=0; t<3*cutoff; t++)
             rsum_derive += pnfft_fabs(pre_dpsi[t]);
 #endif
+      }
+
+      if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+        pre_ddpsi_tensor(
+            ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
+            ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
+            pre_psi, pre_dpsi, ths->pnfft_flags,
+            pre_ddpsi);
       }
     }
 
@@ -2890,20 +2913,56 @@ static void loop_over_particles_trafo(
             (C*)ths->f + j, (C*)ths->grad_f + 3*j);
     } else if(ths->compute_flags & PNFFT_COMPUTE_F){
       /* compute f */
+      if(ths->pnfft_flags & PNFFT_REAL_F)
+        PNX(assign_f_r2r)(
+            ths, p, ths->g2, pre_psi,
+            2*m0, local_ngc, cutoff, 2, interlaced,
+            ths->f + 2*j);
       if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_f_r2r)(
-          ths, p, ths->g2, pre_psi, m0, local_ngc, cutoff, 1, interlaced,
-          ths->f + j);
+            ths, p, ths->g2, pre_psi,
+            m0, local_ngc, cutoff, 1, interlaced,
+            ths->f + j);
       else
         PNX(assign_f_c2c)(
-            ths, p, (C*)ths->g2, pre_psi, m0, local_ngc, cutoff, interlaced,
+            ths, p, (C*)ths->g2, pre_psi,
+            m0, local_ngc, cutoff, interlaced,
             (C*)ths->f + j);
     } else if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
       /* compute grad_f */
-      PNX(assign_grad_f_c2c)(
-          ths, p, (C*)ths->g2, pre_psi, pre_dpsi,
-          m0, local_ngc, cutoff, interlaced,
-          (C*)ths->grad_f + 3*j);
+      if(ths->pnfft_flags & PNFFT_REAL_F)
+        PNX(assign_grad_f_r2r)(
+            ths, p, ths->g2, pre_psi, pre_dpsi,
+            2*m0, local_ngc, cutoff, 2, 2, interlaced,
+            ths->grad_f + 2*3*j);
+      else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
+        PNX(assign_grad_f_r2r)(
+            ths, p, ths->g2, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, 1, 1, interlaced,
+            ths->grad_f + 3*j);
+      else
+        PNX(assign_grad_f_c2c)(
+            ths, p, (C*)ths->g2, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, interlaced,
+            (C*)ths->grad_f + 3*j);
+    }
+
+    if (ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+      if(ths->pnfft_flags & PNFFT_REAL_F)
+        PNX(assign_hessian_f_r2r)(
+            ths, p, ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
+            2*m0, local_ngc, cutoff, 2, 2, interlaced,
+            ths->hessian_f + 2*6*j);
+      else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
+        PNX(assign_hessian_f_r2r)(
+            ths, p, ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
+            m0, local_ngc, cutoff, 1, 1, interlaced,
+            ths->hessian_f + 6*j);
+      else 
+        PNX(assign_hessian_f_c2c)(
+            ths, p, (C*)ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
+            m0, local_ngc, cutoff, interlaced,
+            (C*)ths->hessian_f + 6*j);
     }
   }
 
@@ -2917,8 +2976,9 @@ static void loop_over_particles_trafo(
   }
 #endif
 
-  if(pre_psi != NULL)  PNX(free)(pre_psi);
-  if(pre_dpsi != NULL) PNX(free)(pre_dpsi);
+  if(pre_psi != NULL)   PNX(free)(pre_psi);
+  if(pre_dpsi != NULL)  PNX(free)(pre_dpsi);
+  if(pre_ddpsi != NULL) PNX(free)(pre_ddpsi);
 }
 
 static void loop_over_particles_adj(
@@ -3115,3 +3175,35 @@ void PNX(scale_ik_diff_c2c)(
   }
 }
 
+void PNX(scale_ik_diff2_c2c)(
+    const C* g1_buffer, INT *local_N_start, INT *local_N, int dim, unsigned pnfft_flags,
+    C* g1
+    )
+{
+  INT k[3], m=0;
+  int t1, t2;
+  R minusFourPiSqr = -4.0 * PNFFT_PI * PNFFT_PI;
+  
+  switch(dim){
+    case 0: t1=0; t2=0; break;
+    case 1: t1=0; t2=1; break;
+    case 2: t1=0; t2=2; break;
+    case 3: t1=1; t2=1; break;
+    case 4: t1=1; t2=2; break;
+    case 5: t1=2; t2=2; break;
+  }
+
+  if(pnfft_flags & PNFFT_TRANSPOSED_F_HAT){
+    /* g_hat is transposed N1 x N2 x N0 */
+    for(k[1]=local_N_start[1]; k[1]<local_N_start[1] + local_N[1]; k[1]++)
+      for(k[2]=local_N_start[2]; k[2]<local_N_start[2] + local_N[2]; k[2]++)
+        for(k[0]=local_N_start[0]; k[0]<local_N_start[0] + local_N[0]; k[0]++, m++)
+          g1[m] = minusFourPiSqr * k[t1] * k[t2] * g1_buffer[m];
+  } else {
+    /* g_hat is non-transposed N0 x N1 x N2 */
+    for(k[0]=local_N_start[0]; k[0]<local_N_start[0] + local_N[0]; k[0]++)
+      for(k[1]=local_N_start[1]; k[1]<local_N_start[1] + local_N[1]; k[1]++)
+        for(k[2]=local_N_start[2]; k[2]<local_N_start[2] + local_N[2]; k[2]++, m++)
+          g1[m] = minusFourPiSqr * k[t1] * k[t2] * g1_buffer[m];
+  }
+}

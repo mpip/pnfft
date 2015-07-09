@@ -289,12 +289,16 @@ static void write_run_specific_infos(
   if(ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT)
     PX(fprintf)(comm, file, " | PNFFT_TRANSPOSED_F_HAT");
 
-  if(ths->pnfft_flags & PNFFT_GRAD_IK)
-    PX(fprintf)(comm, file, " | PNFFT_GRAD_IK");
-  else if(ths->pnfft_flags & PNFFT_GRAD_NONE)
-    PX(fprintf)(comm, file, " | PNFFT_GRAD_NONE");
-  else
-    PX(fprintf)(comm, file, " | PNFFT_GRAD_AD");
+
+  if(ths->pnfft_flags & PNFFT_DIFF_AD)
+    PX(fprintf)(comm, file, " | PNFFT_DIFF_AD");
+  if(ths->pnfft_flags & PNFFT_DIFF_IK)
+    PX(fprintf)(comm, file, " | PNFFT_DIFF_IK");
+
+  if(ths->pnfft_flags & PNFFT_GRAD)
+    PX(fprintf)(comm, file, " | PNFFT_GRAD");
+  if(ths->pnfft_flags & PNFFT_HESSIAN)
+    PX(fprintf)(comm, file, " | PNFFT_HESSIAN");
 
   if(ths->pnfft_flags & PNFFT_REAL_F)
     PX(fprintf)(comm, file, " | PNFFT_REAL_F");
@@ -307,6 +311,8 @@ static void write_run_specific_infos(
     PX(fprintf)(comm, file, " | PNFFT_MALLOC_F");
   if(ths->pnfft_flags & PNFFT_MALLOC_GRAD_F)
     PX(fprintf)(comm, file, " | PNFFT_MALLOC_GRAD_F");
+  if(ths->pnfft_flags & PNFFT_MALLOC_HESSIAN_F)
+    PX(fprintf)(comm, file, " | PNFFT_MALLOC_HESSIAN_F");
   PX(fprintf)(comm, file, "\n");
 
   PX(fprintf)(comm, file, "index(%d) = %d;  ", idx, idx);

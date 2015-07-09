@@ -316,13 +316,15 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_TRANSPOSED_NONE  (0U)
 #define PNFFT_TRANSPOSED_F_HAT (1U<< 18)
 
-#define PNFFT_GRAD_AD          (0U)
-#define PNFFT_GRAD_IK          (1U<< 19)
-#define PNFFT_GRAD_NONE        (1U<< 20) /* turn off gradient NFFT and save memory for buffers */
+#define PNFFT_DIFF_IK          (1U<< 19)
+#define PNFFT_DIFF_AD          (1U<< 20)
 
-#define PNFFT_HESSIAN_NONE     (0U) /* turn off Hessian NFFT and save memory for buffers */
-#define PNFFT_HESSIAN_AD       (1U<< 21)
-#define PNFFT_HESSIAN_IK       (1U<< 22)
+#define PNFFT_GRAD             (1U<< 21)
+#define PNFFT_HESSIAN          (1U<< 22)
+
+/* keep these flags only for backward compability */
+#define PNFFT_GRAD_AD          ((PNFFT_GRAD | PNFFT_DIFF_AD))
+#define PNFFT_GRAD_IK          ((PNFFT_GRAD | PNFFT_DIFF_IK))
 
 /* enable some optimizations for real inputs */
 #define PNFFT_REAL_F           (1U<< 23)

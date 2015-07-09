@@ -22,98 +22,262 @@
 #include "pnfft.h"
 #include "ipnfft.h"
 
+static void spread_f_c2c_pre_psi(
+    C f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grid);
+static void spread_f_c2c_pre_full_psi(
+    C f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grid);
+static void spread_f_r2r_pre_psi(
+    R f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT ostride,
+    R *grid);
+static void spread_f_r2r_pre_full_psi(
+    R f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT ostride,
+    R *grid);
+
+static void spread_grad_f_c2c_pre_psi(
+    const C *grad_f, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grid);
+static void spread_grad_f_c2c_pre_full_psi(
+    const C *grad_f, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grid);
+static void spread_grad_f_r2r_pre_psi(
+    const R *grad_f, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *grid);
+static void spread_grad_f_r2r_pre_full_psi(
+    const R *grad_f, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *grid);
+
+static void assign_f_c2c_pre_psi(
+    const C *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *fv);
+static void assign_f_c2c_pre_full_psi(
+    const C *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *fv);
+static void assign_f_r2r_pre_psi(
+    const R *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT istride,
+    R *fv);
+static void assign_f_r2r_pre_full_psi(
+    const R *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, int istride,
+    R *fv);
+
+static void assign_grad_f_c2c_pre_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi, 
+    INT m0, const INT *grid_size, int cutoff,
+    C *grad_f);
+static void assign_grad_f_c2c_pre_full_psi(
+    const C *grid, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grad_f);
+static void assign_grad_f_r2r_pre_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *grad_f);
+static void assign_grad_f_r2r_pre_full_psi(
+    const R *grid, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *grad_f);
+
+static void assign_hessian_f_c2c_pre_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *hessian_f);
+static void assign_hessian_f_c2c_pre_full_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *hessian_f);
+static void assign_hessian_f_r2r_pre_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *hessian_f);
+static void assign_hessian_f_r2r_pre_full_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *hessian_f);
+
+static void assign_f_and_grad_f_c2c_pre_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *fv, C *grad_f);
+static void assign_f_and_grad_f_c2c_pre_full_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *fv, C *grad_f);
+static void assign_f_and_grad_f_r2r_pre_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *fv, R *grad_f);
+static void assign_f_and_grad_f_r2r_pre_full_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *fv, R *grad_f);
+
+
+
+
 
 void PNX(spread_f_c2c)(
     PNX(plan) ths, INT ind,
-    C f, R *pre_psi, INT m0, INT *grid_size, int cutoff, int interlaced,
+    C f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, int interlaced,
     C *grid
     )
 {
   R* plan_pre_psi = (interlaced) ? ths->pre_psi_il : ths->pre_psi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(spread_f_c2c_pre_full_psi)(
+    spread_f_c2c_pre_full_psi(
         f, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, 
         grid);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(spread_f_c2c_pre_psi)(
+    spread_f_c2c_pre_psi(
         f, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, 
         grid);
   else
-    PNX(spread_f_c2c_pre_psi)(
+    spread_f_c2c_pre_psi(
         f, pre_psi, m0, grid_size, cutoff, 
         grid);
 }
 
 void PNX(spread_f_r2r)(
     PNX(plan) ths, INT ind,
-    R f, R *pre_psi, INT m0, INT *grid_size, int cutoff, INT ostride, int interlaced,
+    R f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT ostride, int interlaced,
     R *grid
     )
 {
   R* plan_pre_psi = (interlaced) ? ths->pre_psi_il : ths->pre_psi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(spread_f_r2r_pre_full_psi)(
+    spread_f_r2r_pre_full_psi(
         f, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, ostride,
         grid);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(spread_f_r2r_pre_psi)(
+    spread_f_r2r_pre_psi(
         f, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, ostride,
         grid);
   else
-    PNX(spread_f_r2r_pre_psi)(
+    spread_f_r2r_pre_psi(
         f, pre_psi, m0, grid_size, cutoff, ostride,
+        grid);
+}
+
+void PNX(spread_grad_f_c2c)(
+    PNX(plan) ths, INT ind,
+    const C *grad_f, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, int interlaced,
+    C *grid
+    )
+{
+  R* plan_pre_psi  = (interlaced) ? ths->pre_psi_il  : ths->pre_psi;
+  R* plan_pre_dpsi = (interlaced) ? ths->pre_dpsi_il : ths->pre_dpsi;
+
+  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
+    spread_grad_f_c2c_pre_full_psi(
+        grad_f, plan_pre_dpsi + ind*PNFFT_POW3(cutoff),
+        m0, grid_size, cutoff, 
+        grid);
+  else if(ths->pnfft_flags & PNFFT_PRE_PSI)
+    spread_grad_f_c2c_pre_psi(
+        grad_f, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff, 
+        m0, grid_size, cutoff, 
+        grid);
+  else
+    spread_grad_f_c2c_pre_psi(
+        grad_f, pre_psi, pre_dpsi, m0, grid_size, cutoff, 
+        grid);
+}
+
+void PNX(spread_grad_f_r2r)(
+    PNX(plan) ths, INT ind,
+    const R *grad_f, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    INT istride, INT ostride, int interlaced,
+    R *grid
+    )
+{
+  R* plan_pre_psi  = (interlaced) ? ths->pre_psi_il  : ths->pre_psi;
+  R* plan_pre_dpsi = (interlaced) ? ths->pre_dpsi_il : ths->pre_dpsi;
+
+  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
+    spread_grad_f_r2r_pre_full_psi(
+        grad_f, plan_pre_dpsi + ind*PNFFT_POW3(cutoff),
+        m0, grid_size, cutoff, istride, ostride, 
+        grid);
+  else if(ths->pnfft_flags & PNFFT_PRE_PSI)
+    spread_grad_f_r2r_pre_psi(
+        grad_f, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff, 
+        m0, grid_size, cutoff, istride, ostride,
+        grid);
+  else
+    spread_grad_f_r2r_pre_psi(
+        grad_f, pre_psi, pre_dpsi,
+        m0, grid_size, cutoff, istride, ostride,
         grid);
 }
 
 void PNX(assign_f_c2c)(
     PNX(plan) ths, INT ind,
-    C *grid, R *pre_psi, INT m0, INT *grid_size, int cutoff, int interlaced,
+    const C *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, int interlaced,
     C *f
     )
 {
   R* plan_pre_psi = (interlaced) ? ths->pre_psi_il : ths->pre_psi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(assign_f_c2c_pre_full_psi)(
+    assign_f_c2c_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff,
         f);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(assign_f_c2c_pre_psi)(
+    assign_f_c2c_pre_psi(
         grid, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff,
         f);
   else
-    PNX(assign_f_c2c_pre_psi)(
+    assign_f_c2c_pre_psi(
         grid, pre_psi, m0, grid_size, cutoff,
         f);
 }
 
 void PNX(assign_f_r2r)(
     PNX(plan) ths, INT ind,
-    R *grid, R *pre_psi, INT m0, INT *grid_size, int cutoff, INT istride, int interlaced,
+    const R *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, int interlaced,
     R *f
     )
 { 
   R* plan_pre_psi = (interlaced) ? ths->pre_psi_il : ths->pre_psi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(assign_f_r2r_pre_full_psi)(
+    assign_f_r2r_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, istride,
         f);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(assign_f_r2r_pre_psi)(
+    assign_f_r2r_pre_psi(
         grid, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, istride,
         f);
   else
-    PNX(assign_f_r2r_pre_psi)(
+    assign_f_r2r_pre_psi(
         grid, pre_psi, m0, grid_size, cutoff, istride,
         f);
 }
 
 void PNX(assign_grad_f_c2c)(
     PNX(plan) ths, INT ind,
-    C *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff, int interlaced,
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, int interlaced,
     C *grad_f
     )
 {
@@ -121,17 +285,17 @@ void PNX(assign_grad_f_c2c)(
   R* plan_pre_dpsi = (interlaced) ? ths->pre_dpsi_il : ths->pre_dpsi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(assign_grad_f_c2c_pre_full_psi)(
-        grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
+    assign_grad_f_c2c_pre_full_psi(
+        grid, plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff,
         grad_f);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(assign_grad_f_c2c_pre_psi)(
+    assign_grad_f_c2c_pre_psi(
         grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff,
         grad_f);
   else
-    PNX(assign_grad_f_c2c_pre_psi)(
+    assign_grad_f_c2c_pre_psi(
         grid, pre_psi, pre_dpsi,
         m0, grid_size, cutoff,
         grad_f);
@@ -139,7 +303,8 @@ void PNX(assign_grad_f_c2c)(
 
 void PNX(assign_grad_f_r2r)(
     PNX(plan) ths, INT ind,
-    R *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff,
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
     INT istride, INT ostride, int interlaced,
     R *grad_f
     )
@@ -148,25 +313,98 @@ void PNX(assign_grad_f_r2r)(
   R* plan_pre_dpsi = (interlaced) ? ths->pre_dpsi_il : ths->pre_dpsi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(assign_grad_f_r2r_pre_full_psi)(
-        grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
+    assign_grad_f_r2r_pre_full_psi(
+        grid, plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, istride, ostride,
         grad_f);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(assign_grad_f_r2r_pre_psi)(
+    assign_grad_f_r2r_pre_psi(
         grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff, istride, ostride,
         grad_f);
   else
-    PNX(assign_grad_f_r2r_pre_psi)(
+    assign_grad_f_r2r_pre_psi(
         grid, pre_psi, pre_dpsi,
         m0, grid_size, cutoff, istride, ostride,
         grad_f);
 }
 
+void PNX(assign_hessian_f_c2c)(
+    PNX(plan) ths, INT ind,
+    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff, int interlaced,
+    C *hessian_f
+    )
+{
+  R* plan_pre_psi   = (interlaced) ? ths->pre_psi_il   : ths->pre_psi;
+  R* plan_pre_dpsi  = (interlaced) ? ths->pre_dpsi_il  : ths->pre_dpsi;
+  R* plan_pre_ddpsi = (interlaced) ? ths->pre_ddpsi_il : ths->pre_ddpsi;
+
+  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
+    assign_hessian_f_c2c_pre_full_psi(
+        grid,
+        plan_pre_psi + ind*PNFFT_POW3(cutoff),
+        plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
+        plan_pre_ddpsi + 3*ind*PNFFT_POW3(cutoff),
+        m0, grid_size, cutoff,
+        hessian_f);
+  else if(ths->pnfft_flags & PNFFT_PRE_PSI)
+    assign_hessian_f_c2c_pre_psi(
+        grid, 
+        plan_pre_psi + ind*3*cutoff,
+        plan_pre_dpsi + ind*3*cutoff,
+        plan_pre_ddpsi + ind*3*cutoff,
+        m0, grid_size, cutoff,
+        hessian_f);
+  else
+    assign_hessian_f_c2c_pre_psi(
+        grid, pre_psi, pre_dpsi, pre_ddpsi,
+        m0, grid_size, cutoff,
+        hessian_f);
+}
+
+void PNX(assign_hessian_f_r2r)(
+    PNX(plan) ths, INT ind,
+    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    INT istride, INT ostride, int interlaced,
+    R *hessian_f
+    )
+{
+  R* plan_pre_psi   = (interlaced) ? ths->pre_psi_il   : ths->pre_psi;
+  R* plan_pre_dpsi  = (interlaced) ? ths->pre_dpsi_il  : ths->pre_dpsi;
+  R* plan_pre_ddpsi = (interlaced) ? ths->pre_ddpsi_il : ths->pre_ddpsi;
+
+  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
+    assign_hessian_f_r2r_pre_full_psi(
+        grid,
+        plan_pre_psi + ind*PNFFT_POW3(cutoff),
+        plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
+        plan_pre_ddpsi + 3*ind*PNFFT_POW3(cutoff),
+        m0, grid_size, cutoff, istride, ostride,
+        hessian_f);
+  else if(ths->pnfft_flags & PNFFT_PRE_PSI)
+    assign_hessian_f_r2r_pre_psi(
+        grid, 
+        plan_pre_psi + ind*3*cutoff, 
+        plan_pre_dpsi + ind*3*cutoff,
+        plan_pre_ddpsi + ind*3*cutoff,
+        m0, grid_size, cutoff, istride, ostride,
+        hessian_f);
+  else
+    assign_hessian_f_r2r_pre_psi(
+        grid, pre_psi, pre_dpsi, pre_ddpsi,
+        m0, grid_size, cutoff, istride, ostride,
+        hessian_f);
+}
+
+
+
+
 void PNX(assign_f_and_grad_f_c2c)(
     PNX(plan) ths, INT ind,
-    C *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff, int interlaced,
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, int interlaced,
     C *f, C *grad_f
     )
 { 
@@ -174,17 +412,17 @@ void PNX(assign_f_and_grad_f_c2c)(
   R* plan_pre_dpsi = (interlaced) ? ths->pre_dpsi_il : ths->pre_dpsi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(assign_f_and_grad_f_c2c_pre_full_psi)(
+    assign_f_and_grad_f_c2c_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff,
         f, grad_f);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(assign_f_and_grad_f_c2c_pre_psi)(
+    assign_f_and_grad_f_c2c_pre_psi(
         grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff,
         f, grad_f);
   else
-    PNX(assign_f_and_grad_f_c2c_pre_psi)(
+    assign_f_and_grad_f_c2c_pre_psi(
         grid, pre_psi, pre_dpsi,
         m0, grid_size, cutoff,
         f, grad_f);
@@ -192,7 +430,8 @@ void PNX(assign_f_and_grad_f_c2c)(
 
 void PNX(assign_f_and_grad_f_r2r)(
     PNX(plan) ths, INT ind,
-    R *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff,
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
     INT istride, INT ostride, int interlaced,
     R *f, R *grad_f
     )
@@ -201,17 +440,17 @@ void PNX(assign_f_and_grad_f_r2r)(
   R* plan_pre_dpsi = (interlaced) ? ths->pre_dpsi_il : ths->pre_dpsi;
 
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PNX(assign_f_and_grad_f_r2r_pre_full_psi)(
+    assign_f_and_grad_f_r2r_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, istride, ostride,
         f, grad_f);
   else if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PNX(assign_f_and_grad_f_r2r_pre_psi)(
+    assign_f_and_grad_f_r2r_pre_psi(
         grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff, istride, ostride,
         f, grad_f);
   else
-    PNX(assign_f_and_grad_f_r2r_pre_psi)(
+    assign_f_and_grad_f_r2r_pre_psi(
         grid, pre_psi, pre_dpsi,
         m0, grid_size, cutoff, istride, ostride,
         f, grad_f);
@@ -224,9 +463,9 @@ void PNX(assign_f_and_grad_f_r2r)(
 
 
 
-
-void PNX(spread_f_c2c_pre_psi)(
-    C f, R *pre_psi, INT m0, INT *grid_size, int cutoff,
+static void spread_f_c2c_pre_psi(
+    C f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
     C *grid
     )
 { 
@@ -245,8 +484,9 @@ void PNX(spread_f_c2c_pre_psi)(
   }
 }
 
-void PNX(spread_f_c2c_pre_full_psi)(
-    C f, R *pre_psi, INT m0, INT *grid_size, int cutoff,
+static void spread_f_c2c_pre_full_psi(
+    C f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
     C *grid
     )
 { 
@@ -257,8 +497,9 @@ void PNX(spread_f_c2c_pre_full_psi)(
         grid[m2] += pre_psi[m] * f;
 }
 
-void PNX(spread_f_r2r_pre_psi)(
-    R f, R *pre_psi, INT m0, INT *grid_size, int cutoff, INT ostride,
+static void spread_f_r2r_pre_psi(
+    R f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT ostride,
     R *grid
     )
 { 
@@ -277,8 +518,9 @@ void PNX(spread_f_r2r_pre_psi)(
   }
 }
 
-void PNX(spread_f_r2r_pre_full_psi)(
-    R f, R *pre_psi, INT m0, INT *grid_size, int cutoff, INT ostride,
+static void spread_f_r2r_pre_full_psi(
+    R f, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT ostride,
     R *grid
     )
 { 
@@ -290,8 +532,101 @@ void PNX(spread_f_r2r_pre_full_psi)(
 }
 
 
-void PNX(assign_f_c2c_pre_psi)(
-    C *grid, R *pre_psi, INT m0, INT *grid_size, int cutoff,
+
+static void spread_grad_f_c2c_pre_psi(
+    const C *grad_f, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grid
+    )
+{ 
+  INT m1, m2, l0, l1, l2;
+  R *pre_psi_x = &pre_psi[0*cutoff], *pre_dpsi_x = &pre_dpsi[0*cutoff];
+  R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
+  R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
+      R psi_xy  = pre_psi_x[l0]  * pre_psi_y[l1];
+      R psi_dxy = pre_dpsi_x[l0] * pre_psi_y[l1]; 
+      R psi_xdy = pre_psi_x[l0]  * pre_dpsi_y[l1];
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2++ ){
+        grid[m2] += psi_dxy * pre_psi_z[l2]  * grad_f[0];
+        grid[m2] += psi_xdy * pre_psi_z[l2]  * grad_f[1];
+        grid[m2] += psi_xy  * pre_dpsi_z[l2] * grad_f[2];
+      }
+    }
+  }
+}
+
+static void spread_grad_f_c2c_pre_full_psi(
+    const C *grad_f, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *grid
+    )
+{ 
+  INT m1, m2, l0, l1, l2, dm=0;
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2++, dm+=3 ){
+        grid[m2] += pre_dpsi[dm+0] * grad_f[0];
+        grid[m2] += pre_dpsi[dm+1] * grad_f[1];
+        grid[m2] += pre_dpsi[dm+2] * grad_f[2];
+      }
+    }
+  }
+}
+
+static void spread_grad_f_r2r_pre_psi(
+    const R *grad_f, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *grid
+    )
+{ 
+  INT m1, m2, l0, l1, l2;
+  R *pre_psi_x = &pre_psi[0*cutoff], *pre_dpsi_x = &pre_dpsi[0*cutoff];
+  R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
+  R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*ostride){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*ostride){
+      R psi_xy  = pre_psi_x[l0]  * pre_psi_y[l1];
+      R psi_dxy = pre_dpsi_x[l0] * pre_psi_y[l1]; 
+      R psi_xdy = pre_psi_x[l0]  * pre_dpsi_y[l1];
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=ostride ){
+        grid[m2] += psi_dxy * pre_psi_z[l2]  * grad_f[0*istride];
+        grid[m2] += psi_xdy * pre_psi_z[l2]  * grad_f[1*istride];
+        grid[m2] += psi_xy  * pre_dpsi_z[l2] * grad_f[2*istride];
+      }
+    }
+  }
+}
+
+static void spread_grad_f_r2r_pre_full_psi(
+    const R *grad_f, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *grid
+    )
+{ 
+  INT m1, m2, l0, l1, l2, m=0;
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*ostride){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*ostride){
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=ostride, m++ ){
+        grid[m2] += pre_dpsi[m] * grad_f[0*istride];
+        grid[m2] += pre_dpsi[m] * grad_f[1*istride];
+        grid[m2] += pre_dpsi[m] * grad_f[2*istride];
+      }
+    }
+  }
+}
+
+
+
+
+
+static void assign_f_c2c_pre_psi(
+    const C *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
     C *fv
     )
 { 
@@ -312,8 +647,9 @@ void PNX(assign_f_c2c_pre_psi)(
   *fv += f;
 }
 
-void PNX(assign_f_c2c_pre_full_psi)(
-    C *grid, R *pre_psi, INT m0, INT *grid_size, int cutoff,
+static void assign_f_c2c_pre_full_psi(
+    const C *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff,
     C *fv
     )
 { 
@@ -330,8 +666,9 @@ void PNX(assign_f_c2c_pre_full_psi)(
   *fv += f;
 }
 
-void PNX(assign_f_r2r_pre_psi)(
-    R *grid, R *pre_psi, INT m0, INT *grid_size, int cutoff, INT istride,
+static void assign_f_r2r_pre_psi(
+    const R *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, INT istride,
     R *fv
     )
 { 
@@ -352,8 +689,9 @@ void PNX(assign_f_r2r_pre_psi)(
   *fv += f;;
 }
 
-void PNX(assign_f_r2r_pre_full_psi)(
-    R *grid, R *pre_psi, INT m0, INT *grid_size, int cutoff, int istride,
+static void assign_f_r2r_pre_full_psi(
+    const R *grid, R *pre_psi,
+    INT m0, const INT *grid_size, int cutoff, int istride,
     R *fv
     )
 { 
@@ -370,8 +708,9 @@ void PNX(assign_f_r2r_pre_full_psi)(
   *fv += f;;
 }
 
-void PNX(assign_grad_f_c2c_pre_psi)(
-    C *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff,
+static void assign_grad_f_c2c_pre_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
     C *grad_f
     )
 { 
@@ -396,8 +735,9 @@ void PNX(assign_grad_f_c2c_pre_psi)(
   grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
 }
 
-void PNX(assign_grad_f_c2c_pre_full_psi)(
-    C *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff,
+static void assign_grad_f_c2c_pre_full_psi(
+    const C *grid, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
     C *grad_f
     )
 { 
@@ -416,8 +756,9 @@ void PNX(assign_grad_f_c2c_pre_full_psi)(
   grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
 }
 
-void PNX(assign_grad_f_r2r_pre_psi)(
-    R *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff, INT istride, INT ostride,
+static void assign_grad_f_r2r_pre_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
     R *grad_f
     )
 { 
@@ -442,8 +783,9 @@ void PNX(assign_grad_f_r2r_pre_psi)(
   grad_f[0*ostride] += g0; grad_f[1*ostride] += g1; grad_f[2*ostride] += g2;
 }
 
-void PNX(assign_grad_f_r2r_pre_full_psi)(
-    R *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff, INT istride, INT ostride,
+static void assign_grad_f_r2r_pre_full_psi(
+    const R *grid, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
     R *grad_f
     )
 { 
@@ -464,8 +806,137 @@ void PNX(assign_grad_f_r2r_pre_full_psi)(
 
 
 
-void PNX(assign_f_and_grad_f_c2c_pre_psi)(
-    C *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff,
+static void assign_hessian_f_c2c_pre_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *hessian_f
+    )
+{ 
+  INT m1, m2, l0, l1, l2;
+  R *pre_psi_x = &pre_psi[0*cutoff], *pre_dpsi_x = &pre_dpsi[0*cutoff];
+  R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
+  R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
+  R *pre_ddpsi_x =  &pre_ddpsi[0*cutoff];
+  R *pre_ddpsi_y =  &pre_ddpsi[1*cutoff];
+  R *pre_ddpsi_z =  &pre_ddpsi[2*cutoff];
+  C g0=0, g1=0, g2=0, g3=0, g4=0, g5=0;
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
+      R psi_xy   = pre_psi_x[l0]   * pre_psi_y[l1];
+      R psi_dxy  = pre_dpsi_x[l0]  * pre_psi_y[l1]; 
+      R psi_xdy  = pre_psi_x[l0]   * pre_dpsi_y[l1];
+      R psi_dxdy = pre_dpsi_x[l0]  * pre_dpsi_y[l1];
+      R psi_ddxy = pre_ddpsi_x[l0] * pre_psi_y[l1];
+      R psi_xddy = pre_psi_x[l0]   * pre_ddpsi_y[l1];
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2++ ){
+        g0 += psi_ddxy * pre_psi_z[l2]   * grid[m2];
+        g1 += psi_dxdy * pre_psi_z[l2]   * grid[m2];
+        g2 += psi_dxy  * pre_dpsi_z[l2]  * grid[m2];
+        g3 += psi_xddy * pre_psi_z[l2]   * grid[m2];
+        g4 += psi_xdy  * pre_dpsi_z[l2]  * grid[m2];
+        g5 += psi_xy   * pre_ddpsi_z[l2] * grid[m2];
+      }
+    }
+  }
+  hessian_f[0] += g0; hessian_f[1] += g1; hessian_f[2] += g2;
+  hessian_f[3] += g3; hessian_f[4] += g4; hessian_f[5] += g5;
+}
+
+static void assign_hessian_f_c2c_pre_full_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    C *hessian_f
+    )
+{ 
+  INT m1, m2, l0, l1, l2, ddm=0;
+  C g0=0, g1=0, g2=0, g3=0, g4=0, g5=0;
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2++, ddm+=6 ){
+        g0 += pre_ddpsi[ddm+0] * grid[m2];
+        g1 += pre_ddpsi[ddm+1] * grid[m2];
+        g2 += pre_ddpsi[ddm+2] * grid[m2];
+        g3 += pre_ddpsi[ddm+3] * grid[m2];
+        g4 += pre_ddpsi[ddm+4] * grid[m2];
+        g5 += pre_ddpsi[ddm+5] * grid[m2];
+      }
+    }
+  }
+  hessian_f[0] += g0; hessian_f[1] += g1; hessian_f[2] += g2;
+  hessian_f[3] += g3; hessian_f[4] += g4; hessian_f[5] += g5;
+}
+
+static void assign_hessian_f_r2r_pre_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *hessian_f
+    )
+{ 
+  INT m1, m2, l0, l1, l2;
+  R *pre_psi_x = &pre_psi[0*cutoff], *pre_dpsi_x = &pre_dpsi[0*cutoff];
+  R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
+  R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
+  R *pre_ddpsi_x =  &pre_ddpsi[0*cutoff];
+  R *pre_ddpsi_y =  &pre_ddpsi[1*cutoff];
+  R *pre_ddpsi_z =  &pre_ddpsi[2*cutoff];
+  R g0=0, g1=0, g2=0, g3=0, g4=0, g5=0;
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*istride){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*istride){
+      R psi_xy   = pre_psi_x[l0]   * pre_psi_y[l1];
+      R psi_dxy  = pre_dpsi_x[l0]  * pre_psi_y[l1]; 
+      R psi_xdy  = pre_psi_x[l0]   * pre_dpsi_y[l1];
+      R psi_dxdy = pre_dpsi_x[l0]  * pre_dpsi_y[l1];
+      R psi_ddxy = pre_ddpsi_x[l0] * pre_psi_y[l1];
+      R psi_xddy = pre_psi_x[l0]   * pre_ddpsi_y[l1];
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=istride ){
+        g0 += psi_ddxy * pre_psi_z[l2]   * grid[m2];
+        g1 += psi_dxdy * pre_psi_z[l2]   * grid[m2];
+        g2 += psi_dxy  * pre_dpsi_z[l2]  * grid[m2];
+        g3 += psi_xddy * pre_psi_z[l2]   * grid[m2];
+        g4 += psi_xdy  * pre_dpsi_z[l2]  * grid[m2];
+        g5 += psi_xy   * pre_ddpsi_z[l2] * grid[m2];
+      }
+    }
+  }
+  hessian_f[0*ostride] += g0; hessian_f[1*ostride] += g1; hessian_f[2*ostride] += g2;
+  hessian_f[3*ostride] += g3; hessian_f[4*ostride] += g4; hessian_f[5*ostride] += g5;
+}
+
+static void assign_hessian_f_r2r_pre_full_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    R *hessian_f
+    )
+{ 
+  INT m1, m2, l0, l1, l2, ddm=0;
+  R g0=0, g1=0, g2=0, g3=0, g4=0, g5=0;
+
+  for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*istride){
+    for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*istride){
+      for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=istride, ddm+=6 ){
+        g0 += pre_ddpsi[ddm+0] * grid[m2];
+        g1 += pre_ddpsi[ddm+1] * grid[m2];
+        g2 += pre_ddpsi[ddm+2] * grid[m2];
+        g3 += pre_ddpsi[ddm+3] * grid[m2];
+        g4 += pre_ddpsi[ddm+4] * grid[m2];
+        g5 += pre_ddpsi[ddm+5] * grid[m2];
+      }
+    }
+  }
+  hessian_f[0*ostride] += g0; hessian_f[1*ostride] += g1; hessian_f[2*ostride] += g2;
+  hessian_f[3*ostride] += g3; hessian_f[4*ostride] += g4; hessian_f[5*ostride] += g5;
+}
+
+
+
+
+
+static void assign_f_and_grad_f_c2c_pre_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
     C *fv, C *grad_f
     )
 { 
@@ -492,8 +963,9 @@ void PNX(assign_f_and_grad_f_c2c_pre_psi)(
   grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
 }
 
-void PNX(assign_f_and_grad_f_c2c_pre_full_psi)(
-    C *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff,
+static void assign_f_and_grad_f_c2c_pre_full_psi(
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
     C *fv, C *grad_f
     )
 { 
@@ -514,8 +986,9 @@ void PNX(assign_f_and_grad_f_c2c_pre_full_psi)(
   grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
 }
 
-void PNX(assign_f_and_grad_f_r2r_pre_psi)(
-    R *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff, INT istride, INT ostride,
+static void assign_f_and_grad_f_r2r_pre_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
     R *fv, R *grad_f
     )
 { 
@@ -542,8 +1015,9 @@ void PNX(assign_f_and_grad_f_r2r_pre_psi)(
   grad_f[0*ostride] += g0; grad_f[1*ostride] += g1; grad_f[2*ostride] += g2;
 }
 
-void PNX(assign_f_and_grad_f_r2r_pre_full_psi)(
-    R *grid, R *pre_psi, R *pre_dpsi, INT m0, INT *grid_size, int cutoff, INT istride, INT ostride,
+static void assign_f_and_grad_f_r2r_pre_full_psi(
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
     R *fv, R *grad_f
     )
 {

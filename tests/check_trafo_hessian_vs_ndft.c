@@ -6,13 +6,13 @@ static void pnfft_perform_guru(
     const ptrdiff_t *N, const ptrdiff_t *n, ptrdiff_t local_M,
     int m, const double *x_max, unsigned pnfft_flags,
     const int *np, MPI_Comm comm,
-    int verbose);
+    int debug);
 
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M,
-    int *m, int *window, int *intpol, int *interlacing, int *hessian_ik,
-    double *x_max, int *np, int *verbose);
+    int *m, int *window, int *intpol, int *interlacing, int *diff_ik,
+    double *x_max, int *np, int *debug);
 static void init_random_x(
     const double *lo, const double *up,
     const double *x_max, ptrdiff_t M,
@@ -28,7 +28,7 @@ static double random_number_less_than_one(
 
 
 int main(int argc, char **argv){
-  int np[3], m, window, interlacing, hessian_ik, verbose;
+  int np[3], m, window, interlacing, diff_ik, debug;
   ptrdiff_t N[3], n[3], local_M;
   double x_max[3];
   
@@ -42,14 +42,14 @@ int main(int argc, char **argv){
   m = 6;
   window = 4;
   interlacing = 0;
-  hessian_ik = 0;
+  diff_ik = 0;
   x_max[0] = x_max[1] = x_max[2] = 0.5;
   np[0]=2; np[1]=2; np[2]=2;
-  verbose=0;
+  debug=0;
   
   /* set values by commandline */
   int intpol = -1;
-  init_parameters(argc, argv, N, n, &local_M, &m, &window, &intpol, &interlacing, &hessian_ik, x_max, np, &verbose);
+  init_parameters(argc, argv, N, n, &local_M, &m, &window, &intpol, &interlacing, &diff_ik, x_max, np, &debug);
 
   /* if M or n are set to zero, we choose nice values */
   local_M = (local_M==0) ? N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]) : local_M;
@@ -75,7 +75,7 @@ int main(int argc, char **argv){
   }
 
   unsigned interlacing_flag = (interlacing) ? PNFFT_INTERLACED : 0;
-  unsigned hessian_ik_flag     = (hessian_ik)     ? PNFFT_HESSIAN_IK : 0;
+  unsigned diff_ik_flag     = (diff_ik)  ? PNFFT_DIFF_IK : PNFFT_DIFF_AD;
 
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
@@ -105,20 +105,20 @@ int main(int argc, char **argv){
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_intpol *),\n");
   if(interlacing)
-    pfft_printf(MPI_COMM_WORLD, "*      interlacing = enabled (disable with -pnfft_interlacing 0)");
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = enabled (disable with -pnfft_interlacing 0)\n");
   else
-    pfft_printf(MPI_COMM_WORLD, "*      interlacing = disabled (enable with -pnfft_interlacing 1)");
-  if(hessian_ik)
-    pfft_printf(MPI_COMM_WORLD, "*      hessian = hessian-ik (enable hessian-ad with -pnfft_hessian_ik 0)");
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = disabled (enable with -pnfft_interlacing 1)\n");
+  if(diff_ik)
+    pfft_printf(MPI_COMM_WORLD, "*      derivative = diff-ik (enable diff-ad with -pnfft_diff_ik 0)\n");
   else
-    pfft_printf(MPI_COMM_WORLD, "*      hessian = hessian-ad (enable hessian-ik with -pnfft_hessian_ik 1)");
+    pfft_printf(MPI_COMM_WORLD, "*      derivative = diff-ad (enable diff-ik with -pnfft_diff_ik 1)\n");
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 
 //  window_flag |= PNFFT_PRE_CUB_PSI;
 
   /* calculate parallel NFFT */
-  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag| hessian_ik_flag, np, MPI_COMM_WORLD, verbose);
+  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag| diff_ik_flag| PNFFT_HESSIAN, np, MPI_COMM_WORLD, debug);
 
   /* free mem and finalize */
   pnfft_cleanup();
@@ -131,7 +131,7 @@ static void pnfft_perform_guru(
     const ptrdiff_t *N, const ptrdiff_t *n, ptrdiff_t local_M,
     int m, const double *x_max, unsigned pnfft_flags,
     const int *np, MPI_Comm comm,
-    int verbose
+    int debug
     )
 {
   int myrank;
@@ -168,28 +168,60 @@ static void pnfft_perform_guru(
   pnfft_init_f_hat_3d(N, local_N, local_N_start, PNFFT_TRANSPOSED_NONE,
       f_hat);
   
-if(verbose){
-  ptrdiff_t l=0;
-  for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
-    for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
-      for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, l++)
-        f_hat[l] = (k0==-1 && k1==0 && k2==-1) ? 2.0 : 0.0;
-}
+  if(debug){
+    /* debug mode does NOT work with parallel data distribution */
+    if(np[0]*np[1]*np[2] != 1){
+      fprintf(stderr, "Error: debugging mode is only valid for single core runs !!!\n");
+      exit(1);
+    }
+
+    ptrdiff_t l=0;
+    for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++)
+      for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++)
+        for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, l++)
+          f_hat[l] = sqrt(l+1.0) - 3.0/(l+1.0) * I;
+
+    /* print Matlab-like */
+    for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++){
+      for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++){
+        for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
+          ptrdiff_t l0 = k0-local_N_start[0];
+          ptrdiff_t l1 = k1-local_N_start[1];
+          ptrdiff_t l2 = k2-local_N_start[2];
+          l = l2 + l1 * local_N[2] + l0 * local_N[1]*local_N[2];
+          fprintf(stderr, "f_hat[%td, %td, %td] = %f + %fi,   ", l0+1, l1+1, l2+1, creal(f_hat[l]), cimag(f_hat[l]));
+        }
+        fprintf(stderr, "\n");
+      }
+      fprintf(stderr, "\n");
+    }
+  }
 
   srand(myrank);
   init_random_x(lower_border, upper_border, x_max, local_M,
       x);
-
-for(int t=0; t<3; t++)
-  x[t] = 0.0;
   
-  if(verbose)
+  if(debug){
+    double shift=0.0;
+    for(ptrdiff_t j=0; j<local_M; j++)
+      for(int t=0; t<3; t++)
+        x[3*j+t] = ( (double)j/local_M + t*shift) - 0.5;
     for(ptrdiff_t j=0; j<local_M; j++)
       fprintf(stderr, "x(%td) = [%.2e, %.2e, %.2e]\n", j, x[3*j], x[3*j+1], x[3*j+2]);
+  }
     
   time = -MPI_Wtime();
   pnfft_trafo(pnfft);
   time += MPI_Wtime();
+
+  if(debug){
+    for(ptrdiff_t j=0; j<local_M; j++){
+      fprintf(stderr, "hessian(%d, %td) = [ ", myrank, j);
+      for(int t=0; t<6; t++)
+        fprintf(stderr, "%.2e + %.2e * I,   ", creal(hessian_f[6*j+t]), cimag(hessian_f[6*j+t]));
+      fprintf(stderr, "]\n");
+    }
+  }
   
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
   pfft_printf(comm, "pnfft_trafo with Hessian needs %6.2e s\n", time_max);
@@ -203,16 +235,22 @@ for(int t=0; t<3; t++)
   f1 = pnfft_alloc_complex(local_M);
   for(ptrdiff_t j=0; j<local_M; j++) f1[j] = f[j];
 
-  hessian_f1 = pnfft_alloc_complex(3*local_M);
-  for(ptrdiff_t j=0; j<3*local_M; j++) hessian_f1[j] = hessian_f[j];
+  hessian_f1 = pnfft_alloc_complex(6*local_M);
+  for(ptrdiff_t j=0; j<6*local_M; j++) hessian_f1[j] = hessian_f[j];
 
   /* execute parallel NDFT */
   time = -MPI_Wtime();
   pnfft_direct_trafo(pnfft);
   time += MPI_Wtime();
 
-  if(verbose)
-    for(ptrdiff_t j=0; j<6*local_M; j++) fprintf(stderr, "hessian(%d, %td) = %.2e + %.2e * I\n", myrank, j, creal(hessian_f[j]), cimag(hessian_f[j]));
+  if(debug){
+    for(ptrdiff_t j=0; j<local_M; j++){
+      fprintf(stderr, "hessian(%d, %td) = [ ", myrank, j);
+      for(int t=0; t<6; t++)
+        fprintf(stderr, "%.2e + %.2e * I,   ", creal(hessian_f[6*j+t]), cimag(hessian_f[6*j+t]));
+      fprintf(stderr, "]\n");
+    }
+  }
 
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
@@ -232,8 +270,8 @@ for(int t=0; t<3; t++)
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M,
-    int *m, int *window, int *intpol, int *interlacing, int *hessian_ik,
-    double *x_max, int *np, int *verbose
+    int *m, int *window, int *intpol, int *interlacing, int *diff_ik,
+    double *x_max, int *np, int *debug
     )
 {
   pfft_get_args(argc, argv, "-pnfft_local_M", 1, PFFT_PTRDIFF_T, M);
@@ -244,9 +282,9 @@ static void init_parameters(
   pfft_get_args(argc, argv, "-pnfft_window", 1, PFFT_INT, window);
   pfft_get_args(argc, argv, "-pnfft_intpol", 1, PFFT_INT, intpol);
   pfft_get_args(argc, argv, "-pnfft_interlacing", 1, PFFT_INT, interlacing);
-  pfft_get_args(argc, argv, "-pnfft_hessian_ik", 1, PFFT_INT, hessian_ik);
+  pfft_get_args(argc, argv, "-pnfft_diff_ik", 1, PFFT_INT, diff_ik);
   pfft_get_args(argc, argv, "-pnfft_x_max", 3, PFFT_DOUBLE, x_max);
-  pfft_get_args(argc, argv, "-pnfft_verbose", 1, PFFT_INT, verbose);
+  pfft_get_args(argc, argv, "-pnfft_debug", 1, PFFT_INT, debug);
 }
 
 
@@ -276,11 +314,10 @@ static void compare_hessian_f(
   for(int t=0; t<6; t++){
     error = 0;
     for(ptrdiff_t j=0; j<local_M; j++)
-      if( cabs(hessian_f1[3*j]-hessian_f2[3*j]) > error)
+      if( cabs(hessian_f1[6*j+t]-hessian_f2[6*j+t]) > error)
         error = cabs(hessian_f1[6*j+t]-hessian_f2[6*j+t]);
     MPI_Reduce(&error, &error_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-    pfft_printf(comm, "%s, %d. component - absolute error = %6.2e\n", name, error_max);
-    pfft_printf(comm, "%sx %d. component - relative error = %6.2e\n", name, error_max/f_hat_sum);
+    pfft_printf(comm, "%s, %d. component - absolute error = %6.2e,  relative error =  %6.2e\n", name, t, error_max, error_max/f_hat_sum);
   }
 }
 
