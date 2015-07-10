@@ -1857,11 +1857,11 @@ static void pre_dpsi_tensor_bspline(
 
   for(int t=0; t<d; t++){
     /* Bspline is shifted by m */
-    R u_j = floor_nx[t] - n[t]*x[t];
+    R u_j = n[t]*x[t] - floor_nx[t] + m;
     for(int s=0; s<cutoff; s++)
       pre_dpsi[cutoff*t+s] = (R)n[t] *
-        ( PNX(bspline)(2*m-1, u_j + (R)s, spline_coeffs)
-          - PNX(bspline)(2*m-1, u_j + (R)s - 1, spline_coeffs) );
+        ( PNX(bspline)(2*m-1, u_j - (R)s + m, spline_coeffs)
+          - PNX(bspline)(2*m-1, u_j - (R)s + m - 1, spline_coeffs) );
   }
 }
 
@@ -2003,7 +2003,7 @@ static void pre_ddpsi_tensor_bspline(
   if(m<9){
     for(int t=0; t<d; t++){
       /* Bspline is shifted by m */
-      R dist = n[t]*x[t] - floor_nx[t] - 0.5;
+      R dist = floor_nx[t] - n[t]*x[t] + 0.5;
       for(int s=0; s<cutoff; s++)
 	pre_ddpsi[cutoff*t+s] = (R)n[t] * (R)n[t] * PNX(fast_bspline_dd)(s-1, dist, 2*m);
     }
@@ -2012,12 +2012,12 @@ static void pre_ddpsi_tensor_bspline(
 
   for(int t=0; t<d; t++){
     /* Bspline is shifted by m */
-    R u_j = n[t]*x[t] - floor_nx[t];
+    R u_j = n[t]*x[t] - floor_nx[t] + m;
     for(int s=0; s<cutoff; s++)
       pre_ddpsi[cutoff*t+s] = (R)n[t] * (R)n[t] *
-        ( PNX(bspline)(2*m-2, u_j - (R)s, spline_coeffs)
-	  - 2.0 * PNX(bspline)(2*m-2, u_j - (R)s - 1, spline_coeffs)
-          + PNX(bspline)(2*m-2, u_j - (R)s - 2, spline_coeffs) );
+        ( PNX(bspline)(2*m-2, u_j - (R)s + m, spline_coeffs)
+	  - 2.0 * PNX(bspline)(2*m-2, u_j - (R)s + m - 1, spline_coeffs)
+          + PNX(bspline)(2*m-2, u_j - (R)s + m - 2, spline_coeffs) );
   }
 }
 
