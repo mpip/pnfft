@@ -2850,7 +2850,7 @@ static void loop_over_particles_trafo(
         for(int t=0; t<6; t++)
           ths->hessian_f[6*j+t] = 0;
       else
-        for(int t=0; t<ths->d; t++)
+        for(int t=0; t<6; t++)
           ((C*)ths->hessian_f)[6*j+t] = 0;
     }
 
