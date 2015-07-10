@@ -387,8 +387,16 @@ void PNX(trafo_A)(
 
   if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
     for(INT j=0; j<ths->local_M; j++)  ths->f[j] = 0;
+    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F)
+      for(INT j=0; j<3*ths->local_M; j++)  ths->grad_f[j] = 0;
+    if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F)
+      for(INT j=0; j<6*ths->local_M; j++)  ths->hessian_f[j] = 0;
   } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
     for(INT j=0; j<ths->local_M; j++)  ((C*)ths->f)[j] = 0;
+    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F)
+      for(INT j=0; j<3*ths->local_M; j++)  ((C*)ths->grad_f)[j] = 0;
+    if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F)
+      for(INT j=0; j<6*ths->local_M; j++)  ((C*)ths->hessian_f)[j] = 0;
   }
 
   for(int pid=0; pid<np_total; pid++){
@@ -427,7 +435,8 @@ void PNX(trafo_A)(
       C exp_kx2_start = pnfft_cexp(-2.0 * PNFFT_PI * local_Np_start[t2] * ths->x[3*j+t2] * I);
 
       if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
-        R hessian_f[12] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        R hessian_f_r[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        C hessian_f_c[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         INT m=0;
         C exp_kx0 = exp_kx0_start;
@@ -444,20 +453,20 @@ void PNX(trafo_A)(
                      ! is_hermitian(k0, k1, k2, ths->N[t0], ths->N[t1], ths->N[t2])
                    )
                 {
-                  hessian_f[0] += 2 * k0 * k0 * pnfft_creal(bufferTimesExp);
-                  hessian_f[2] += 2 * k0 * k1 * pnfft_creal(bufferTimesExp);
-                  hessian_f[4] += 2 * k0 * k2 * pnfft_creal(bufferTimesExp);
-                  hessian_f[6] += 2 * k1 * k1 * pnfft_creal(bufferTimesExp);
-                  hessian_f[8] += 2 * k1 * k2 * pnfft_creal(bufferTimesExp);
-                  hessian_f[10]+= 2 * k2 * k2 * pnfft_creal(bufferTimesExp);
+                  hessian_f_r[0] += 2 * k0 * k0 * pnfft_creal(bufferTimesExp);
+                  hessian_f_r[1] += 2 * k0 * k1 * pnfft_creal(bufferTimesExp);
+                  hessian_f_r[2] += 2 * k0 * k2 * pnfft_creal(bufferTimesExp);
+                  hessian_f_r[3] += 2 * k1 * k1 * pnfft_creal(bufferTimesExp);
+                  hessian_f_r[4] += 2 * k1 * k2 * pnfft_creal(bufferTimesExp);
+                  hessian_f_r[5]+= 2 * k2 * k2 * pnfft_creal(bufferTimesExp);
                 }
               } else {
-                ((C*)hessian_f)[0] += k0 * k0 * bufferTimesExp;
-                ((C*)hessian_f)[1] += k0 * k1 * bufferTimesExp;
-                ((C*)hessian_f)[2] += k0 * k2 * bufferTimesExp;
-                ((C*)hessian_f)[3] += k1 * k1 * bufferTimesExp;
-                ((C*)hessian_f)[4] += k1 * k2 * bufferTimesExp;
-                ((C*)hessian_f)[5] += k2 * k2 * bufferTimesExp;
+                hessian_f_c[0] += k0 * k0 * bufferTimesExp;
+                hessian_f_c[1] += k0 * k1 * bufferTimesExp;
+                hessian_f_c[2] += k0 * k2 * bufferTimesExp;
+                hessian_f_c[3] += k1 * k1 * bufferTimesExp;
+                hessian_f_c[4] += k1 * k2 * bufferTimesExp;
+                hessian_f_c[5] += k2 * k2 * bufferTimesExp;
               }
 
               exp_kx2 *= exp_x2;
@@ -468,25 +477,26 @@ void PNX(trafo_A)(
         }
 
         if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-          ths->hessian_f[6*j+s0] = hessian_f[0];
-          ths->hessian_f[6*j+s1] = hessian_f[2];
-          ths->hessian_f[6*j+s2] = hessian_f[4];
-          ths->hessian_f[6*j+s3] = hessian_f[6];
-          ths->hessian_f[6*j+s4] = hessian_f[8];
-          ths->hessian_f[6*j+s5] = hessian_f[10];
+          ths->hessian_f[6*j+s0] += hessian_f_r[0];
+          ths->hessian_f[6*j+s1] += hessian_f_r[1];
+          ths->hessian_f[6*j+s2] += hessian_f_r[2];
+          ths->hessian_f[6*j+s3] += hessian_f_r[3];
+          ths->hessian_f[6*j+s4] += hessian_f_r[4];
+          ths->hessian_f[6*j+s5] += hessian_f_r[5];
         } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
-          ((C*)ths->hessian_f)[6*j+s0] = ((C*)hessian_f)[0];
-          ((C*)ths->hessian_f)[6*j+s1] = ((C*)hessian_f)[1];
-          ((C*)ths->hessian_f)[6*j+s2] = ((C*)hessian_f)[2];
-          ((C*)ths->hessian_f)[6*j+s3] = ((C*)hessian_f)[3];
-          ((C*)ths->hessian_f)[6*j+s4] = ((C*)hessian_f)[4];
-          ((C*)ths->hessian_f)[6*j+s5] = ((C*)hessian_f)[5];
+          ((C*)ths->hessian_f)[6*j+s0] += hessian_f_c[0];
+          ((C*)ths->hessian_f)[6*j+s1] += hessian_f_c[1];
+          ((C*)ths->hessian_f)[6*j+s2] += hessian_f_c[2];
+          ((C*)ths->hessian_f)[6*j+s3] += hessian_f_c[3];
+          ((C*)ths->hessian_f)[6*j+s4] += hessian_f_c[4];
+          ((C*)ths->hessian_f)[6*j+s5] += hessian_f_c[5];
         }
 
       }
       
       if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
-        R grad_f[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        R grad_f_r[3] = {0.0, 0.0, 0.0};
+        C grad_f_c[3] = {0.0, 0.0, 0.0};
 
         INT m=0;
         C exp_kx0 = exp_kx0_start;
@@ -503,14 +513,14 @@ void PNX(trafo_A)(
                      ! is_hermitian(k0, k1, k2, ths->N[t0], ths->N[t1], ths->N[t2])
                     )
                 {
-                  grad_f[0] += 2 * k0 * pnfft_cimag(bufferTimesExp);
-                  grad_f[2] += 2 * k1 * pnfft_cimag(bufferTimesExp);
-                  grad_f[4] += 2 * k2 * pnfft_cimag(bufferTimesExp);
+                  grad_f_r[0] += 2 * k0 * pnfft_cimag(bufferTimesExp);
+                  grad_f_r[1] += 2 * k1 * pnfft_cimag(bufferTimesExp);
+                  grad_f_r[2] += 2 * k2 * pnfft_cimag(bufferTimesExp);
                 }
               } else {
-                ((C*)grad_f)[0] += k0 * bufferTimesExp;
-                ((C*)grad_f)[1] += k1 * bufferTimesExp;
-                ((C*)grad_f)[2] += k2 * bufferTimesExp;
+                grad_f_c[0] += k0 * bufferTimesExp;
+                grad_f_c[1] += k1 * bufferTimesExp;
+                grad_f_c[2] += k2 * bufferTimesExp;
               }
 
               exp_kx2 *= exp_x2;
@@ -521,17 +531,20 @@ void PNX(trafo_A)(
         }
 
         if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-          ths->grad_f[3*j+t0] = grad_f[0];
-          ths->grad_f[3*j+t1] = grad_f[2];
-          ths->grad_f[3*j+t2] = grad_f[4];
+          ths->grad_f[3*j+t0] += grad_f_r[0];
+          ths->grad_f[3*j+t1] += grad_f_r[1];
+          ths->grad_f[3*j+t2] += grad_f_r[2];
         } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
-          ((C*)ths->grad_f)[3*j+t0] = ((C*)grad_f)[0];
-          ((C*)ths->grad_f)[3*j+t1] = ((C*)grad_f)[1];
-          ((C*)ths->grad_f)[3*j+t2] = ((C*)grad_f)[2];
+          ((C*)ths->grad_f)[3*j+t0] += grad_f_c[0];
+          ((C*)ths->grad_f)[3*j+t1] += grad_f_c[1];
+          ((C*)ths->grad_f)[3*j+t2] += grad_f_c[2];
         }
       }
       
       if(ths->compute_flags & PNFFT_COMPUTE_F){
+        R f_r = 0; 
+        C f_c = 0;
+
         INT m=0;
         C exp_kx0 = exp_kx0_start;
         for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
@@ -541,11 +554,11 @@ void PNX(trafo_A)(
             for(INT k2 = local_Np_start[t2]; k2 < local_Np_start[t2] + local_Np[t2]; k2++, m++){
               if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
                 if (k0 == 0 && k1 == 0 && k2 == 0)
-                  ths->f[j] += pnfft_creal(buffer[m]);
+                  f_r += pnfft_creal(buffer[m]);
                 else if ( ! is_hermitian(k0, k1, k2, ths->N[t0], ths->N[t1], ths->N[t2]) )
-                  ths->f[j] += 2 * pnfft_creal(buffer[m] * exp_kx2);
+                  f_r += 2 * pnfft_creal(buffer[m] * exp_kx2);
               } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C)
-                ((C*)ths->f)[j] += buffer[m] * exp_kx2;
+                f_c += buffer[m] * exp_kx2;
 
               exp_kx2 *= exp_x2;
             }
@@ -553,6 +566,11 @@ void PNX(trafo_A)(
           }
           exp_kx0 *= exp_x0;
         }
+
+        if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
+          ths->f[j] += f_r;
+        else if (ths->trafo_flag & PNFFTI_TRAFO_C2C)
+          ((C*)ths->f)[j] += f_c;
       }
     }
 
@@ -2831,29 +2849,6 @@ static void loop_over_particles_trafo(
       }
     }
 
-    if(ths->compute_flags & PNFFT_COMPUTE_F) {
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-        ths->f[j] = 0;
-      else
-        ((C*)ths->f)[j] = 0;
-    }
-    if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-        for(int t=0; t<ths->d; t++)
-          ths->grad_f[ths->d*j+t] = 0;
-      else
-        for(int t=0; t<ths->d; t++)
-          ((C*)ths->grad_f)[ths->d*j+t] = 0;
-    }
-    if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-        for(int t=0; t<6; t++)
-          ths->hessian_f[6*j+t] = 0;
-      else
-        for(int t=0; t<6; t++)
-          ((C*)ths->hessian_f)[6*j+t] = 0;
-    }
-
     /* evaluate window on axes */
     if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
       pre_psi_tensor(
@@ -3181,7 +3176,7 @@ void PNX(scale_ik_diff2_c2c)(
     )
 {
   INT k[3], m=0;
-  int t1, t2;
+  int t1=0, t2=0;
   R minusFourPiSqr = -4.0 * PNFFT_PI * PNFFT_PI;
   
   switch(dim){

@@ -644,7 +644,7 @@ static void assign_f_c2c_pre_psi(
       }
     }
   }
-  *fv += f;
+  *fv = f;
 }
 
 static void assign_f_c2c_pre_full_psi(
@@ -663,7 +663,7 @@ static void assign_f_c2c_pre_full_psi(
       }
     }
   }
-  *fv += f;
+  *fv = f;
 }
 
 static void assign_f_r2r_pre_psi(
@@ -686,7 +686,7 @@ static void assign_f_r2r_pre_psi(
       }
     }
   }
-  *fv += f;;
+  *fv = f;
 }
 
 static void assign_f_r2r_pre_full_psi(
@@ -705,7 +705,7 @@ static void assign_f_r2r_pre_full_psi(
       }
     }
   }
-  *fv += f;;
+  *fv = f;
 }
 
 static void assign_grad_f_c2c_pre_psi(
@@ -732,7 +732,7 @@ static void assign_grad_f_c2c_pre_psi(
       }
     }
   }
-  grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
+  grad_f[0] = g0; grad_f[1] = g1; grad_f[2] = g2;
 }
 
 static void assign_grad_f_c2c_pre_full_psi(
@@ -753,7 +753,7 @@ static void assign_grad_f_c2c_pre_full_psi(
       }
     }
   }
-  grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
+  grad_f[0] = g0; grad_f[1] = g1; grad_f[2] = g2;
 }
 
 static void assign_grad_f_r2r_pre_psi(
@@ -780,7 +780,7 @@ static void assign_grad_f_r2r_pre_psi(
       }
     }
   }
-  grad_f[0*ostride] += g0; grad_f[1*ostride] += g1; grad_f[2*ostride] += g2;
+  grad_f[0*ostride] = g0; grad_f[1*ostride] = g1; grad_f[2*ostride] = g2;
 }
 
 static void assign_grad_f_r2r_pre_full_psi(
@@ -801,7 +801,7 @@ static void assign_grad_f_r2r_pre_full_psi(
       }
     }
   }
-  grad_f[0*ostride] += g0; grad_f[1*ostride] += g1; grad_f[2*ostride] += g2;
+  grad_f[0*ostride] = g0; grad_f[1*ostride] = g1; grad_f[2*ostride] = g2;
 }
 
 
@@ -839,8 +839,8 @@ static void assign_hessian_f_c2c_pre_psi(
       }
     }
   }
-  hessian_f[0] += g0; hessian_f[1] += g1; hessian_f[2] += g2;
-  hessian_f[3] += g3; hessian_f[4] += g4; hessian_f[5] += g5;
+  hessian_f[0] = g0; hessian_f[1] = g1; hessian_f[2] = g2;
+  hessian_f[3] = g3; hessian_f[4] = g4; hessian_f[5] = g5;
 }
 
 static void assign_hessian_f_c2c_pre_full_psi(
@@ -864,8 +864,8 @@ static void assign_hessian_f_c2c_pre_full_psi(
       }
     }
   }
-  hessian_f[0] += g0; hessian_f[1] += g1; hessian_f[2] += g2;
-  hessian_f[3] += g3; hessian_f[4] += g4; hessian_f[5] += g5;
+  hessian_f[0] = g0; hessian_f[1] = g1; hessian_f[2] = g2;
+  hessian_f[3] = g3; hessian_f[4] = g4; hessian_f[5] = g5;
 }
 
 static void assign_hessian_f_r2r_pre_psi(
@@ -901,8 +901,8 @@ static void assign_hessian_f_r2r_pre_psi(
       }
     }
   }
-  hessian_f[0*ostride] += g0; hessian_f[1*ostride] += g1; hessian_f[2*ostride] += g2;
-  hessian_f[3*ostride] += g3; hessian_f[4*ostride] += g4; hessian_f[5*ostride] += g5;
+  hessian_f[0*ostride] = g0; hessian_f[1*ostride] = g1; hessian_f[2*ostride] = g2;
+  hessian_f[3*ostride] = g3; hessian_f[4*ostride] = g4; hessian_f[5*ostride] = g5;
 }
 
 static void assign_hessian_f_r2r_pre_full_psi(
@@ -926,8 +926,8 @@ static void assign_hessian_f_r2r_pre_full_psi(
       }
     }
   }
-  hessian_f[0*ostride] += g0; hessian_f[1*ostride] += g1; hessian_f[2*ostride] += g2;
-  hessian_f[3*ostride] += g3; hessian_f[4*ostride] += g4; hessian_f[5*ostride] += g5;
+  hessian_f[0*ostride] = g0; hessian_f[1*ostride] = g1; hessian_f[2*ostride] = g2;
+  hessian_f[3*ostride] = g3; hessian_f[4*ostride] = g4; hessian_f[5*ostride] = g5;
 }
 
 
@@ -959,8 +959,8 @@ static void assign_f_and_grad_f_c2c_pre_psi(
       }
     }
   }
-  *fv += f;
-  grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
+  *fv = f;
+  grad_f[0] = g0; grad_f[1] = g1; grad_f[2] = g2;
 }
 
 static void assign_f_and_grad_f_c2c_pre_full_psi(
@@ -982,8 +982,8 @@ static void assign_f_and_grad_f_c2c_pre_full_psi(
       }
     }
   }
-  *fv += f;
-  grad_f[0] += g0; grad_f[1] += g1; grad_f[2] += g2;
+  *fv = f;
+  grad_f[0] = g0; grad_f[1] = g1; grad_f[2] = g2;
 }
 
 static void assign_f_and_grad_f_r2r_pre_psi(
@@ -1011,8 +1011,8 @@ static void assign_f_and_grad_f_r2r_pre_psi(
       }
     }
   }
-  *fv += f;
-  grad_f[0*ostride] += g0; grad_f[1*ostride] += g1; grad_f[2*ostride] += g2;
+  *fv = f;
+  grad_f[0*ostride] = g0; grad_f[1*ostride] = g1; grad_f[2*ostride] = g2;
 }
 
 static void assign_f_and_grad_f_r2r_pre_full_psi(
@@ -1034,8 +1034,8 @@ static void assign_f_and_grad_f_r2r_pre_full_psi(
       }
     }
   }
-  *fv += f;
-  grad_f[0*ostride] += g0; grad_f[1*ostride] += g1; grad_f[2*ostride] += g2;
+  *fv = f;
+  grad_f[0*ostride] = g0; grad_f[1*ostride] = g1; grad_f[2*ostride] = g2;
 }
 
 

@@ -170,8 +170,8 @@ static void pnfft_perform_guru(
   
   if(debug){
     /* debug mode does NOT work with parallel data distribution */
-    if(np[0]*np[1]*np[2] != 1){
-      fprintf(stderr, "Error: debugging mode is only valid for single core runs !!!\n");
+    if(np[0]*np[1]*np[2] > 2){
+      fprintf(stderr, "Error: debugging mode is only valid for 1 and 2 core runs !!!\n");
       exit(1);
     }
 
@@ -182,18 +182,23 @@ static void pnfft_perform_guru(
           f_hat[l] = sqrt(l+1.0) - 3.0/(l+1.0) * I;
 
     /* print Matlab-like */
-    for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++){
-      for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++){
-        for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
-          ptrdiff_t l0 = k0-local_N_start[0];
-          ptrdiff_t l1 = k1-local_N_start[1];
-          ptrdiff_t l2 = k2-local_N_start[2];
-          l = l2 + l1 * local_N[2] + l0 * local_N[1]*local_N[2];
-          fprintf(stderr, "f_hat[%td, %td, %td] = %f + %fi,   ", l0+1, l1+1, l2+1, creal(f_hat[l]), cimag(f_hat[l]));
+    for(int p=0; p<np[0]*np[1]*np[2]; p++){
+      if(myrank==p){
+        for(ptrdiff_t k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++){
+          for(ptrdiff_t k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++){
+            for(ptrdiff_t k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
+              ptrdiff_t l0 = k0-local_N_start[0];
+              ptrdiff_t l1 = k1-local_N_start[1];
+              ptrdiff_t l2 = k2-local_N_start[2];
+              l = l2 + l1 * local_N[2] + l0 * local_N[1]*local_N[2];
+              fprintf(stderr, "f_hat[%td, %td, %td] = %f + %fi,   ", k0+N[0]/2+1, k1+N[1]/2+1, k2+N[2]/2+1, creal(f_hat[l]), cimag(f_hat[l]));
+            }
+            fprintf(stderr, "\n");
+          }
+          fprintf(stderr, "\n");
         }
-        fprintf(stderr, "\n");
       }
-      fprintf(stderr, "\n");
+      MPI_Barrier(comm_cart_3d);
     }
   }
 
@@ -202,10 +207,11 @@ static void pnfft_perform_guru(
       x);
   
   if(debug){
-    double shift=0.0;
+    MPI_Barrier(comm_cart_3d);
+    double shift=0.1;
     for(ptrdiff_t j=0; j<local_M; j++)
       for(int t=0; t<3; t++)
-        x[3*j+t] = ( (double)j/local_M + t*shift) - 0.5;
+        x[3*j+t] = ( (double)j/local_M + t*shift) - 0.5 * (myrank==0);
     for(ptrdiff_t j=0; j<local_M; j++)
       fprintf(stderr, "x(%td) = [%.2e, %.2e, %.2e]\n", j, x[3*j], x[3*j+1], x[3*j+2]);
   }
@@ -215,11 +221,16 @@ static void pnfft_perform_guru(
   time += MPI_Wtime();
 
   if(debug){
-    for(ptrdiff_t j=0; j<local_M; j++){
-      fprintf(stderr, "hessian(%d, %td) = [ ", myrank, j);
-      for(int t=0; t<6; t++)
-        fprintf(stderr, "%.2e + %.2e * I,   ", creal(hessian_f[6*j+t]), cimag(hessian_f[6*j+t]));
-      fprintf(stderr, "]\n");
+    for(int p=0; p<np[0]*np[1]*np[2]; p++){
+      if(myrank==p){
+        for(ptrdiff_t j=0; j<local_M; j++){
+          fprintf(stderr, "pnfft hessian(%d, %td) = [ ", myrank, j);
+          for(int t=0; t<6; t++)
+            fprintf(stderr, "%.2e + %.2e * I,   ", creal(hessian_f[6*j+t]), cimag(hessian_f[6*j+t]));
+          fprintf(stderr, "]\n");
+        }
+      }
+      MPI_Barrier(comm_cart_3d);
     }
   }
   
@@ -244,11 +255,16 @@ static void pnfft_perform_guru(
   time += MPI_Wtime();
 
   if(debug){
-    for(ptrdiff_t j=0; j<local_M; j++){
-      fprintf(stderr, "hessian(%d, %td) = [ ", myrank, j);
-      for(int t=0; t<6; t++)
-        fprintf(stderr, "%.2e + %.2e * I,   ", creal(hessian_f[6*j+t]), cimag(hessian_f[6*j+t]));
-      fprintf(stderr, "]\n");
+    for(int p=0; p<np[0]*np[1]*np[2]; p++){
+      if(myrank==p){
+        for(ptrdiff_t j=0; j<local_M; j++){
+          fprintf(stderr, "pndft hessian(%d, %td) = [ ", myrank, j);
+          for(int t=0; t<6; t++)
+            fprintf(stderr, "%.2e + %.2e * I,   ", creal(hessian_f[6*j+t]), cimag(hessian_f[6*j+t]));
+          fprintf(stderr, "]\n");
+        }
+      }
+      MPI_Barrier(comm_cart_3d);
     }
   }
 
