@@ -213,8 +213,9 @@ void PNX(direct_trafo)(
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 }
 
-void PNX(direct_adj)(
-    PNX(plan) ths
+
+static void direct_adj(
+    PNX(plan) ths, unsigned compute_flags
     )
 {
   if(ths==NULL){
@@ -224,10 +225,25 @@ void PNX(direct_adj)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
-  PNX(adj_A)(ths);
+  PNX(adj_A)(ths, compute_flags);
 
   ths->timer_adj[PNFFT_TIMER_ITER]++;
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
+}
+
+
+void PNX(direct_adj)(
+    PNX(plan) ths
+    )
+{
+  direct_adj(ths, PNFFT_COMPUTE_F);
+}
+
+void PNX(direct_adj_grad)(
+    PNX(plan) ths
+    )
+{
+  direct_adj(ths, PNFFT_COMPUTE_GRAD_F);
 }
 
 static void trafo(
@@ -353,12 +369,12 @@ void PNX(trafo)(
 }
 
 static void adj(
-    PNX(plan) ths, int interlaced
+    PNX(plan) ths, int interlaced, unsigned compute_flags
     )
 {
   /* multiplication with matrix B^T */
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
-  PNX(adjoint_B)(ths, interlaced);
+  PNX(adjoint_B)(ths, interlaced, compute_flags);
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
 
   /* multiplication with matrix F^H */
@@ -372,8 +388,8 @@ static void adj(
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 }
 
-void PNX(adj)(
-    PNX(plan) ths
+static void adj_f_or_grad_f(
+    PNX(plan) ths, unsigned compute_flags
     )
 {
   if(ths==NULL){
@@ -384,7 +400,7 @@ void PNX(adj)(
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
   /* compute non-interlaced NFFT */
-  adj(ths, 0);
+  adj(ths, 0, compute_flags);
 
   /* compute interlaced NFFT and average the results */
   if(ths->pnfft_flags & PNFFT_INTERLACED){
@@ -393,7 +409,7 @@ void PNX(adj)(
     for(INT m=0; m<ths->local_N_total; m++)
       buffer_f_hat[m] = ths->f_hat[m];
 
-    adj(ths, 1);
+    adj(ths, 1, compute_flags);
 
     for(INT m=0; m<ths->local_N_total; m++)
       ths->f_hat[m] = 0.5 * (ths->f_hat[m] + buffer_f_hat[m]);
@@ -404,6 +420,19 @@ void PNX(adj)(
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
 }
 
+void PNX(adj)(
+    PNX(plan) ths
+    )
+{
+  adj_f_or_grad_f(ths, PNFFT_COMPUTE_F);
+}
+
+void PNX(adj_grad)(
+    PNX(plan) ths
+    )
+{
+  adj_f_or_grad_f(ths, PNFFT_COMPUTE_GRAD_F);
+}
 
 void PNX(finalize)(
     PNX(plan) ths, unsigned pnfft_finalize_flags

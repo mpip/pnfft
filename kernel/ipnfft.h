@@ -307,7 +307,7 @@ PNX(plan) PNX(init_internal)(
 void PNX(trafo_A)(
     PNX(plan) ths);
 void PNX(adj_A)(
-    PNX(plan) ths);
+    PNX(plan) ths, unsigned compute_flags);
 void PNX(trafo_F)(
     PNX(plan) ths);
 void PNX(adjoint_F)(
@@ -317,7 +317,7 @@ void PNX(trafo_B_ad)(
 void PNX(trafo_B_strided)(
     PNX(plan) ths, R *f, INT offset, INT stride, int interlaced);
 void PNX(adjoint_B)(
-    PNX(plan) ths, int interlaced);
+    PNX(plan) ths, int interlaced, unsigned compute_flags);
 void PNX(malloc_x)(
     PNX(plan) ths, unsigned pnfft_flags);
 void PNX(free_x)(

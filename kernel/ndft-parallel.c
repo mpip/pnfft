@@ -601,7 +601,7 @@ void PNX(trafo_A)(
 
 
 void PNX(adj_A)(
-    PNX(plan) ths
+    PNX(plan) ths, unsigned compute_flags
     )
 {
   int np_total, myrnk;
@@ -637,24 +637,52 @@ void PNX(adj_A)(
       C exp_kx1_start = pnfft_cexp(+2.0 * PNFFT_PI * local_Np_start[t1] * ths->x[3*j+t1] * I);
       C exp_kx2_start = pnfft_cexp(+2.0 * PNFFT_PI * local_Np_start[t2] * ths->x[3*j+t2] * I);
 
-      INT m=0;
-      C exp_kx0;
-      if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
-        exp_kx0 = exp_kx0_start * ths->f[j];
-      else
-        exp_kx0 = exp_kx0_start * ((C*)ths->f)[j];
-      for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
-        C exp_kx1 = exp_kx0 * exp_kx1_start;
-        for(INT k1 = local_Np_start[t1]; k1 < local_Np_start[t1] + local_Np[t1]; k1++){
-          C exp_kx2 = exp_kx1 * exp_kx2_start;
-          for(INT k2 = local_Np_start[t2]; k2 < local_Np_start[t2] + local_Np[t2]; k2++, m++){
-            buffer[m] += exp_kx2;
+      if(compute_flags & PNFFT_COMPUTE_F){
+        C f;
+        if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
+          f = ths->f[j];
+        else
+          f = ((C*)ths->f)[j];
 
-            exp_kx2 *= exp_x2;
+        INT m=0;
+        C exp_kx0 = f * exp_kx0_start;
+        for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
+          C exp_kx1 = exp_kx0 * exp_kx1_start;
+          for(INT k1 = local_Np_start[t1]; k1 < local_Np_start[t1] + local_Np[t1]; k1++){
+            C exp_kx2 = exp_kx1 * exp_kx2_start;
+            for(INT k2 = local_Np_start[t2]; k2 < local_Np_start[t2] + local_Np[t2]; k2++, m++){
+              buffer[m] += exp_kx2;
+
+              exp_kx2 *= exp_x2;
+            }
+            exp_kx1 *= exp_x1;
           }
-          exp_kx1 *= exp_x1;
+          exp_kx0 *= exp_x0;
         }
-        exp_kx0 *= exp_x0;
+      } else if (compute_flags & PNFFT_COMPUTE_GRAD_F) {
+        C grad_f[3];
+        if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
+          for(int t=0; t<3; t++) grad_f[t] = ths->f[3*j+t];
+        else
+          for(int t=0; t<3; t++) grad_f[t] = ((C*)ths->f)[3*j+t];
+
+        INT m=0;
+        C exp_kx0 = exp_kx0_start;
+        for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
+          C sum_k0 = grad_f[0] * k0;
+          C exp_kx1 = exp_kx0 * exp_kx1_start;
+          for(INT k1 = local_Np_start[t1]; k1 < local_Np_start[t1] + local_Np[t1]; k1++){
+            C sum_k1 = grad_f[1] * k1 + sum_k0;
+            C exp_kx2 = exp_kx1 * exp_kx2_start;
+            for(INT k2 = local_Np_start[t2]; k2 < local_Np_start[t2] + local_Np[t2]; k2++, m++){
+              buffer[m] += (grad_f[2] * k2 + sum_k1) * exp_kx2;
+
+              exp_kx2 *= exp_x2;
+            }
+            exp_kx1 *= exp_x1;
+          }
+          exp_kx0 *= exp_x0;
+        }
       }
     }
 
@@ -2707,7 +2735,7 @@ void PNX(trafo_B_ad)(
 
 
 void PNX(adjoint_B)(
-    PNX(plan) ths, int interlaced
+    PNX(plan) ths, int interlaced, unsigned compute_flags
     )
 {
   INT *sorted_index = NULL;

@@ -185,9 +185,13 @@
       PNX(plan) ths);                                                                   \
   PNFFT_EXTERN void PNX(direct_adj)(                                                    \
       PNX(plan) ths);                                                                   \
+  PNFFT_EXTERN void PNX(direct_adj_grad)(                                               \
+      PNX(plan) ths);                                                                   \
   PNFFT_EXTERN void PNX(trafo)(                                                         \
       PNX(plan) ths);                                                                   \
   PNFFT_EXTERN void PNX(adj)(                                                           \
+      PNX(plan) ths);                                                                   \
+  PNFFT_EXTERN void PNX(adj_grad)(                                                      \
       PNX(plan) ths);                                                                   \
                                                                                         \
   PNFFT_EXTERN void PNX(init)(                                                          \
