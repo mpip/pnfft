@@ -471,6 +471,7 @@ AC_CONFIG_FILES([Makefile \
                 api/pnfftl.f03 \
 		kernel/Makefile \
 		util/Makefile \
+		cerf/Makefile \
 		api/Makefile \
 		tests/Makefile \
 		tests/f03/Makefile \

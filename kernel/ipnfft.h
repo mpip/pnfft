@@ -44,6 +44,7 @@
 #include <float.h>              /* DBL_EPSILON, ... */
 
 #include <pfft.h>
+#include <complex.h> // C99 complex-number support
 
 #define IPNFFT_EXTERN extern
 
@@ -72,6 +73,7 @@ typedef ptrdiff_t INT;
 #if defined(PNFFT_PREC_SINGLE)
   typedef float R;
   typedef pnfftf_complex C;
+  typedef float _Complex cmplx; /* type used in libcerf */
 #  define PNFFT_MPI_REAL_TYPE MPI_FLOAT
 #  define PNX(name) CONCAT(pnfftf_, name)
 #  define PX(name) PFFT_MANGLE_FLOAT(name)
@@ -81,6 +83,7 @@ typedef ptrdiff_t INT;
 #elif defined(PNFFT_PREC_LDOUBLE)
   typedef long double R;
   typedef pnfftl_complex C;
+  typedef long double _Complex cmplx; /* type used in libcerf */
 #  define PNFFT_MPI_REAL_TYPE MPI_LONG_DOUBLE
 #  define PNX(name) CONCAT(pnfftl_, name)
 #  define PX(name) PFFT_MANGLE_LONG_DOUBLE(name)
@@ -90,6 +93,7 @@ typedef ptrdiff_t INT;
 #else
   typedef double R;
   typedef pnfft_complex C;
+  typedef double _Complex cmplx; /* type used in libcerf */
 #  define PNFFT_MPI_REAL_TYPE MPI_DOUBLE
 #  define PNX(name) CONCAT(pnfft_, name)
 #  define PX(name) PFFT_MANGLE_DOUBLE(name)
@@ -335,7 +339,7 @@ void PNX(scale_ik_diff_c2c)(
     const C* g1_buffer, INT *local_N_start, INT *local_N, int dim, unsigned pnfft_flags,
     C* g1);
 
-/* assgin.c */
+/* assign.c */
 void PNX(spread_f_c2c)(
     PNX(plan) ths, INT ind,
     C f, R *pre_psi, INT m0, INT *local_ngc, int cutoff,
@@ -475,5 +479,8 @@ static inline R pnfft_intpol_kub(
   c3=dist-2.0;
   return(-f0*c1*c2*c3+3.0*c0*f1*c2*c3-3.0*c0*c1*f2*c3+c0*c1*c2*f3)/6.0;
 }
+
+/* liberfc */
+#include <../cerf/cerf.h>
 
 #endif /* __IPNFFT_H__ */

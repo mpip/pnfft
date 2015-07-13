@@ -16,7 +16,7 @@ AM_DISTCHECK_CONFIGURE_FLAGS = \
   "LDFLAGS=@LDFLAGS@"
 
 # Traverse these subdirectories, the current one first (for config.h).
-SUBDIRS = kernel util api .
+SUBDIRS = kernel util cerf api .
 
 # Tests work with double precision only.
 if ENABLE_TESTS
@@ -42,6 +42,7 @@ lib@PNFFT_PREFIX@pnfft@PREC_SUFFIX@_la_SOURCES =
 lib@PNFFT_PREFIX@pnfft@PREC_SUFFIX@_la_LIBADD = \
 	kernel/libkernel.la \
 	util/libutil.la \
+	cerf/libcerf.la \
 	api/libapi.la
 #	tests/libtests.la
 lib@PNFFT_PREFIX@pnfft@PREC_SUFFIX@_la_LDFLAGS = -no-undefined -version-info @SHARED_VERSION_INFO@
