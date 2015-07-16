@@ -51,6 +51,7 @@
 #define PNFFT_DEFINE_API(PNX, PX, X, R, C, INT)                                         \
                                                                                         \
   typedef struct PNX(plan_s) *PNX(plan);                                                \
+  typedef struct PNX(nodes_s) *PNX(plan);                                               \
                                                                                         \
   PNFFT_EXTERN int PNX(create_procmesh_2d)(                                             \
       MPI_Comm comm, int np0, int np1, MPI_Comm *comm_cart_2d);                         \
@@ -113,53 +114,55 @@
         unsigned pnfft_flags, unsigned fftw_flags,                                      \
         MPI_Comm comm_cart);                                                            \
                                                                                         \
-  PNFFT_EXTERN void PNX(init_nodes)(                                                    \
-      PNX(plan) ths, INT local_M,                                                       \
-      unsigned pnfft_flags, unsigned pnfft_finalize_flags);                             \
+  PNFFT_EXTERN PNX(nodes) PNX(init_nodes)(                                              \
+      INT local_M, unsigned pnfft_flags);                                               \
+  PNFFT_EXTERN void PNX(free_nodes)(                                                    \
+      PNX(nodes) ths, unsigned pnfft_finalize_flags);                                   \
                                                                                         \
   PNFFT_EXTERN void PNX(precompute_psi)(                                                \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
                                                                                         \
-  PNFFT_EXTERN void PNX(set_f_hat)(                                                     \
-      C *f_hat, PNX(plan) ths);                                                         \
   PNFFT_EXTERN void PNX(set_f)(                                                         \
-      C *f, PNX(plan) ths);                                                             \
+      C *f, PNX(nodes) ths);                                                            \
   PNFFT_EXTERN void PNX(set_grad_f)(                                                    \
-      C *grad_f, PNX(plan) ths);                                                        \
+      C *grad_f, PNX(nodes) ths);                                                       \
   PNFFT_EXTERN void PNX(set_hessian_f)(                                                 \
-      C *hessian_f, PNX(plan) ths);                                                     \
-  PNFFT_EXTERN void PNX(set_f_hat_real)(                                                \
-      R *f_hat, PNX(plan) ths);                                                         \
+      C *hessian_f, PNX(nodes) ths);                                                    \
   PNFFT_EXTERN void PNX(set_f_real)(                                                    \
-      R *f, PNX(plan) ths);                                                             \
+      R *f, PNX(nodes) ths);                                                            \
   PNFFT_EXTERN void PNX(set_grad_f_real)(                                               \
-      R *grad_f, PNX(plan) ths);                                                        \
+      R *grad_f, PNX(nodes) ths);                                                       \
   PNFFT_EXTERN void PNX(set_hessian_f_real)(                                            \
       R *hessian_f, PNX(plan) ths);                                                     \
   PNFFT_EXTERN void PNX(set_x)(                                                         \
-      R *x, PNX(plan) ths);                                                             \
+      R *x, PNX(nodes) ths);                                                            \
+                                                                                        \
+  PNFFT_EXTERN void PNX(set_f_hat)(                                                     \
+      C *f_hat, PNX(plan) ths);                                                         \
+  PNFFT_EXTERN void PNX(set_f_hat_real)(                                                \
+      R *f_hat, PNX(plan) ths);                                                         \
   PNFFT_EXTERN void PNX(set_b)(                                                         \
       R b0, R b1, R b2, PNX(plan) ths);                                                 \
                                                                                         \
-  PNFFT_EXTERN C *PNX(get_f_hat)(                                                       \
-      const PNX(plan) ths);                                                             \
   PNFFT_EXTERN C *PNX(get_f)(                                                           \
-      const PNX(plan) ths);                                                             \
+      const PNX(nodes) ths);                                                            \
   PNFFT_EXTERN C *PNX(get_grad_f)(                                                      \
-      const PNX(plan) ths);                                                             \
+      const PNX(nodes) ths);                                                            \
   PNFFT_EXTERN C *PNX(get_hessian_f)(                                                   \
+      const PNX(nodes) ths);                                                            \
+  PNFFT_EXTERN R *PNX(get_f_real)(                                                      \
+      const PNX(nodes) ths);                                                            \
+  PNFFT_EXTERN R *PNX(get_grad_f_real)(                                                 \
+      const PNX(nodes) ths);                                                            \
+  PNFFT_EXTERN R *PNX(get_hessian_f_real)(                                              \
+      const PNX(nodes) ths);                                                            \
+  PNFFT_EXTERN R *PNX(get_x)(                                                           \
+      const PNX(nodes) ths);                                                            \
+                                                                                        \
+  PNFFT_EXTERN C *PNX(get_f_hat)(                                                       \
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN R *PNX(get_f_hat_real)(                                                  \
       const PNX(plan) ths);                                                             \
-  PNFFT_EXTERN R *PNX(get_f_real)(                                                      \
-      const PNX(plan) ths);                                                             \
-  PNFFT_EXTERN R *PNX(get_grad_f_real)(                                                 \
-      const PNX(plan) ths);                                                             \
-  PNFFT_EXTERN R *PNX(get_hessian_f_real)(                                              \
-      const PNX(plan) ths);                                                             \
-  PNFFT_EXTERN R *PNX(get_x)(                                                           \
-      const PNX(plan) ths);                                                             \
-                                                                                        \
   PNFFT_EXTERN int PNX(get_d)(                                                          \
       const PNX(plan) ths);                                                             \
   PNFFT_EXTERN int PNX(get_m)(                                                          \
@@ -182,17 +185,17 @@
       PNX(plan) ths, unsigned pnfft_finalize_flags);                                    \
                                                                                         \
   PNFFT_EXTERN void PNX(direct_trafo)(                                                  \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(direct_adj)(                                                    \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(direct_adj_grad)(                                               \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(trafo)(                                                         \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(adj)(                                                           \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(adj_grad)(                                                      \
-      PNX(plan) ths);                                                                   \
+      PNX(plan) ths, PNX(nodes) nodes);                                                 \
                                                                                         \
   PNFFT_EXTERN void PNX(init)(                                                          \
       void);                                                                            \
@@ -350,9 +353,12 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_FREE_GRAD_F      ((PNFFT_MALLOC_GRAD_F))
 #define PNFFT_FREE_HESSIAN_F   ((PNFFT_MALLOC_HESSIAN_F))
 
-#define PNFFT_COMPUTE_F         ((PNFFT_MALLOC_F))
-#define PNFFT_COMPUTE_GRAD_F    ((PNFFT_MALLOC_GRAD_F))
-#define PNFFT_COMPUTE_HESSIAN_F ((PNFFT_MALLOC_HESSIAN_F))
+#define PNFFT_COMPUTE_F         (1U<<  0)
+#define PNFFT_COMPUTE_GRAD_F    (1U<<  1)
+#define PNFFT_COMPUTE_HESSIAN_F (1U<<  2)
+#define PNFFT_COMPUTE_DECONV    (1U<<  3)
+#define PNFFT_COMPUTE_FFT       (1U<<  4)
+#define PNFFT_COMPUTE_CONV      (1U<<  5)
 
 #define PNFFT_INT            ((PFFT_INT))
 #define PNFFT_PTRDIFF_T      ((PFFT_PTRDIFF_T))

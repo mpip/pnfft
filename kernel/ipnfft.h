@@ -150,15 +150,47 @@ typedef ptrdiff_t INT;
 
 #ifndef PNFFT_H
 typedef struct PNX(plan_s) *PNX(plan);
+typedef struct PNX(nodes_s) *PNX(nodes);
 #endif /* !PNFFT_H */
 
-typedef struct PNX(plan_s){                                                                      
-  INT N_total;                /**< Total number of Fourier coefficients            */
-  C *f_hat;                   /**< Vector of Fourier coefficients                  */
+typedef struct PNX(nodes_s){
+  INT local_M;                /**< Number of local nodes                           */
   R *f;                       /**< Vector of samples                               */
   R *grad_f;                  /**< Vector of gradients                             */
   R *hessian_f;               /**< Upper triangle of the Hessian                   */
   R *x;                       /**< Nodes in time/spatial domain                    */
+
+  unsigned compute_flags;     /**< Flags for choice of NFFT results                */
+
+  R *pre_psi;                 /**< Precomputed window function values              */
+  R *pre_dpsi;                /**< Precomputed window function derivatives         */
+  R *pre_ddpsi;               /**< Precomputed window function 2nd derivatives     */
+  R *pre_psi_il;              /**< Precomputed window function values, interlaced  */
+  R *pre_dpsi_il;             /**< Precomputed window function derivatives, interlaced */
+  R *pre_ddpsi_il;            /**< Precomputed window function 2nd derivatives, interlaced */
+
+} nodes_s;
+
+
+typedef struct PNX(plan_s){                                                                      
+  INT N_total;                /**< Total number of Fourier coefficients            */
+  C *f_hat;                   /**< Vector of Fourier coefficients                  */
+
+  PNX(nodes) nodes;           /**< Struct containing all nodes dependend data      */
+//   INT local_M;                /**< Number of local nodes                           */
+//   R *f;                       /**< Vector of samples                               */
+//   R *grad_f;                  /**< Vector of gradients                             */
+//   R *hessian_f;               /**< Upper triangle of the Hessian                   */
+//   R *x;                       /**< Nodes in time/spatial domain                    */
+//
+//   R *pre_psi;                 /**< Precomputed window function values              */
+//   R *pre_dpsi;                /**< Precomputed window function derivatives         */
+//   R *pre_ddpsi;               /**< Precomputed window function 2nd derivatives     */
+//   R *pre_psi_il;              /**< Precomputed window function values, interlaced  */
+//   R *pre_dpsi_il;             /**< Precomputed window function derivatives, interlaced */
+//   R *pre_ddpsi_il;            /**< Precomputed window function 2nd derivatives, interlaced */
+//                                                                                        
+//   unsigned compute_flags;     /**< Flags for choice of NFFT results                */
                                                                                      
   int d;                      /**< Dimension, rank                                 */
   INT *N;                     /**< Multi bandwidth                                 */
@@ -186,16 +218,8 @@ typedef struct PNX(plan_s){
   C *pre_inv_phi_hat_adj;     /**< Precomputed inverse window Fourier coefficients   
                                    for adjoint NFFT                                */
 
-  R *pre_psi;                 /**< Precomputed window function values              */
-  R *pre_dpsi;                /**< Precomputed window function derivatives         */
-  R *pre_ddpsi;               /**< Precomputed window function 2nd derivatives     */
-  R *pre_psi_il;              /**< Precomputed window function values, interlaced  */
-  R *pre_dpsi_il;             /**< Precomputed window function derivatives, interlaced */
-  R *pre_ddpsi_il;            /**< Precomputed window function 2nd derivatives, interlaced */
-                                                                                     
   unsigned pnfft_flags;        /**< Flags for precomputation, (de)allocation,        
                                    and FFTW usage                                  */
-  unsigned compute_flags;     /**< Flags for choice of NFFT results                */
   unsigned trafo_flag;        /**< Flags for choice of transformation type         */
   unsigned pfft_opt_flags;    /**< Flags for PFFT optimization                     */
                                                                                      
@@ -209,7 +233,6 @@ typedef struct PNX(plan_s){
   R *g1_buffer;               /**< Buffer for computing Fourier-space derivatives  */
                                                                                      
   int cutoff;                 /**< cutoff range                                    */
-  INT local_M;                /**< Number of local nodes                           */
                                                                                      
   /* parameters for window interpolation table */                                    
   int intpol_order;           /**< order of window interpolation                   */
@@ -305,35 +328,27 @@ PNX(plan) PNX(init_internal)(
     unsigned trafo_flag, unsigned pnfft_flags, unsigned pfft_opt_flags,
     MPI_Comm comm_cart_2d);
 void PNX(trafo_A)(
-    PNX(plan) ths);
+    PNX(plan) ths, PNX(nodes) nodes);
 void PNX(adj_A)(
-    PNX(plan) ths, unsigned compute_flags);
+    PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);
 void PNX(trafo_F)(
     PNX(plan) ths);
 void PNX(adjoint_F)(
     PNX(plan) ths);
 void PNX(trafo_B_ad)(
-    PNX(plan) ths, int interlaced);
+    PNX(plan) ths, PNX(nodes) nodes, int interlaced);
 void PNX(trafo_B_strided)(
-    PNX(plan) ths, R *f, INT offset, INT stride, int interlaced);
+    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride, int interlaced);
 void PNX(adjoint_B)(
-    PNX(plan) ths, int interlaced, unsigned compute_flags);
+    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags);
 void PNX(malloc_x)(
-    PNX(plan) ths, unsigned pnfft_flags);
-void PNX(free_x)(
-    PNX(plan) ths, unsigned pnfft_finalize_flags);
+    PNX(nodes) nodes, unsigned pnfft_flags);
 void PNX(malloc_f)(
-    PNX(plan) ths, unsigned pnfft_flags);
-void PNX(free_f)(
-    PNX(plan) ths, unsigned pnfft_finalize_flags);
+    PNX(nodes) nodes, unsigned pnfft_flags);
 void PNX(malloc_grad_f)(
-    PNX(plan) ths, unsigned pnfft_flags);
-void PNX(free_grad_f)(
-    PNX(plan) ths, unsigned pnfft_finalize_flags);
+    PNX(nodes) nodes, unsigned pnfft_flags);
 void PNX(malloc_hessian_f)(
-    PNX(plan) ths, unsigned pnfft_flags);
-void PNX(free_hessian_f)(
-    PNX(plan) ths, unsigned pnfft_finalize_flags);
+    PNX(nodes) nodes, unsigned pnfft_flags);
 void PNX(node_borders)(
     const INT *n,
     const INT *local_no, const INT *local_no_start,
