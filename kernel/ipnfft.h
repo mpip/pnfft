@@ -328,7 +328,7 @@ PNX(plan) PNX(init_internal)(
     unsigned trafo_flag, unsigned pnfft_flags, unsigned pfft_opt_flags,
     MPI_Comm comm_cart_2d);
 void PNX(trafo_A)(
-    PNX(plan) ths, PNX(nodes) nodes);
+    PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);
 void PNX(adj_A)(
     PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);
 void PNX(trafo_F)(
@@ -336,7 +336,7 @@ void PNX(trafo_F)(
 void PNX(adjoint_F)(
     PNX(plan) ths);
 void PNX(trafo_B_ad)(
-    PNX(plan) ths, PNX(nodes) nodes, int interlaced);
+    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags);
 void PNX(trafo_B_strided)(
     PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride, int interlaced);
 void PNX(adjoint_B)(

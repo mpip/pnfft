@@ -185,13 +185,13 @@
       PNX(plan) ths, unsigned pnfft_finalize_flags);                                    \
                                                                                         \
   PNFFT_EXTERN void PNX(direct_trafo)(                                                  \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
+      PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);                         \
   PNFFT_EXTERN void PNX(direct_adj)(                                                    \
       PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(direct_adj_grad)(                                               \
       PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(trafo)(                                                         \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
+      PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);                         \
   PNFFT_EXTERN void PNX(adj)(                                                           \
       PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(adj_grad)(                                                      \
