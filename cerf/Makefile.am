@@ -31,8 +31,9 @@ noinst_LTLIBRARIES = libcerf.la
 
 libcerf_la_SOURCES = \
 	cerf.h \
+	defs.h \
 	im_w_of_x.c \
        	erfcx.c \
-	w_of_z.c \
-	err_fcts.c
+	err_fcts.c \
+	w_of_z.c
 
