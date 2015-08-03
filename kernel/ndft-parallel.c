@@ -872,6 +872,11 @@ PNX(plan) PNX(init_internal)(
     pnfft_flags &= (~PNFFT_PRE_FULL_PSI); /* needed for correct pnfft_finalize */
   }
 
+  /* Test Faddeeva function: */
+//   R x=0.5, y=0.1;
+//   cmplx w = w_of_z( x + I*y);
+//   fprintf(stderr, "w(x+y*I) = %e + %e * I, x = %e, y = %e\n", creal(w), cimag(w), x, y);
+
   ths = mkplan();
 
   ths->d = d;
