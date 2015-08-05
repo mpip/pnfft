@@ -51,7 +51,7 @@
 #define PNFFT_DEFINE_API(PNX, PX, X, R, C, INT)                                         \
                                                                                         \
   typedef struct PNX(plan_s) *PNX(plan);                                                \
-  typedef struct PNX(nodes_s) *PNX(plan);                                               \
+  typedef struct PNX(nodes_s) *PNX(nodes);                                              \
                                                                                         \
   PNFFT_EXTERN int PNX(create_procmesh_2d)(                                             \
       MPI_Comm comm, int np0, int np1, MPI_Comm *comm_cart_2d);                         \

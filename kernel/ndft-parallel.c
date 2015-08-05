@@ -36,11 +36,13 @@
 #define PNFFT_SAVE_FREE(array) = if(array != NULL) free(array);
 
 static void loop_over_particles_trafo(
-    PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-    int interlaced,
+    PNX(plan) ths, PNX(nodes) nodes,
+    INT *local_no_start, INT *local_ngc, INT *gcells_below,
+    int interlaced, unsigned compute_flags,
     INT *sorted_index);
 static void loop_over_particles_adj(
-    PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
+    PNX(plan) ths, PNX(nodes) nodes,
+    INT *local_no_start, INT *local_ngc, INT *gcells_below,
     int interlaced,
     INT *sorted_index);
 // static void loop_over_particles_adj_interlaced_0(
@@ -852,8 +854,7 @@ void PNX(local_block_internal)(
  * n - oversampled FFT size
  * no - FFT output size (if nodes are only in a subset the array) */
 PNX(plan) PNX(init_internal)(
-    int d, const INT *N, const INT *n, const INT *no,
-    int m,
+    int d, const INT *N, const INT *n, const INT *no, int m,
     unsigned trafo_flag, unsigned pnfft_flags, unsigned pfft_opt_flags,
     MPI_Comm comm_cart
     )
@@ -1151,9 +1152,9 @@ void PNX(precompute_psi)(
   int compute_grad_ad, compute_hessian_ad;
  
   compute_grad_ad = (ths->pnfft_flags & PNFFT_DIFF_AD)
-                    && (compute_flags & PNFFT_COMPUTE_GRAD_F);
+                    && (nodes->compute_flags & PNFFT_COMPUTE_GRAD_F);
   compute_hessian_ad = (ths->pnfft_flags & PNFFT_DIFF_AD)
-                    && (compute_flags & PNFFT_COMPUTE_HESSIAN_F);
+                    && (nodes->compute_flags & PNFFT_COMPUTE_HESSIAN_F);
 
   /* cleanup old precomputations */
   if(nodes->pre_psi != NULL)
@@ -1393,7 +1394,7 @@ static PNX(nodes) mknodes(
   nodes->pre_dpsi_il  = NULL;
   nodes->pre_ddpsi_il = NULL;
 
-  return ths;
+  return nodes;
 }
 
 static PNX(plan) mkplan(
@@ -1470,7 +1471,7 @@ void PNX(malloc_x)(
   if( ~pnfft_flags & PNFFT_MALLOC_X )
     return;
 
-  nodes->x = (nodes->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * (size_t) ths->d*nodes->local_M) : NULL;
+  nodes->x = (nodes->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * (size_t) 3*nodes->local_M) : NULL;
 }
 
 void PNX(malloc_f)(
@@ -1484,13 +1485,13 @@ void PNX(malloc_f)(
 }
 
 void PNX(malloc_grad_f)(
-    PNX(nodes) ths, unsigned pnfft_flags
+    PNX(nodes) nodes, unsigned pnfft_flags
     )
 {
   if( ~pnfft_flags & PNFFT_MALLOC_GRAD_F )
     return;
 
-  nodes->grad_f = (nodes->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * 2 * (size_t) ths->d*nodes->local_M) : NULL;
+  nodes->grad_f = (nodes->local_M>0) ? (R*) PNX(malloc)(sizeof(R) * 2 * (size_t) 3*nodes->local_M) : NULL;
 }
 
 void PNX(malloc_hessian_f)(
@@ -2675,7 +2676,7 @@ void PNX(trafo_B_ad)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
   loop_over_particles_trafo(
-      ths, local_no_start, local_ngc, gcells_below, interlaced, sorted_index, compute_flags);
+      ths, nodes, local_no_start, local_ngc, gcells_below, interlaced, compute_flags, sorted_index);
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
 
 #if PNFFT_ENABLE_DEBUG
@@ -2698,7 +2699,7 @@ void PNX(trafo_B_ad)(
 
 
 void PNX(adjoint_B)(
-    PNX(plan) ths, int interlaced, unsigned compute_flags
+    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags
     )
 {
   INT *sorted_index = NULL;
@@ -2748,7 +2749,7 @@ void PNX(adjoint_B)(
   
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_LOOP_B]);
   loop_over_particles_adj(
-      ths, local_no_start, local_ngc, gcells_below, interlaced, sorted_index);
+      ths, nodes, local_no_start, local_ngc, gcells_below, interlaced, sorted_index);
   /* TODO: - try to optimize for real values inputs
    *       - combine two r2c FFTs in one c2c FFT
    *       - problem: with parallel domain decomposition its hard to use Hermitian symmetry in order to restore the two separate FFT outputs */
@@ -2793,8 +2794,9 @@ void PNX(adjoint_B)(
 }
 
 static void loop_over_particles_trafo(
-    PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-    int interlaced,
+    PNX(plan) ths, PNX(nodes) nodes,
+    INT *local_no_start, INT *local_ngc, INT *gcells_below,
+    int interlaced, unsigned compute_flags,
     INT *sorted_index
     )
 {
@@ -2885,34 +2887,34 @@ static void loop_over_particles_trafo(
         PNX(assign_f_and_grad_f_r2r)(
             ths, p, ths->g2, pre_psi, pre_dpsi,
             2*m0, local_ngc, cutoff, 2, 2, interlaced,
-            ths->f + 2*j, nodes->grad_f + 2*3*j);
+            nodes->f + 2*j, nodes->grad_f + 2*3*j);
       else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_f_and_grad_f_r2r)(
             ths, p, ths->g2, pre_psi, pre_dpsi,
             m0, local_ngc, cutoff, 1, 1, interlaced,
-            ths->f + j, nodes->grad_f + 3*j);
+            nodes->f + j, nodes->grad_f + 3*j);
       else
         PNX(assign_f_and_grad_f_c2c)(
             ths, p, (C*)ths->g2, pre_psi, pre_dpsi,
             m0, local_ngc, cutoff, interlaced,
-            (C*)ths->f + j, (C*)nodes->grad_f + 3*j);
+            (C*)nodes->f + j, (C*)nodes->grad_f + 3*j);
     } else if(compute_flags & PNFFT_COMPUTE_F){
       /* compute f */
       if(ths->pnfft_flags & PNFFT_REAL_F)
         PNX(assign_f_r2r)(
             ths, p, ths->g2, pre_psi,
             2*m0, local_ngc, cutoff, 2, interlaced,
-            ths->f + 2*j);
+            nodes->f + 2*j);
       if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_f_r2r)(
             ths, p, ths->g2, pre_psi,
             m0, local_ngc, cutoff, 1, interlaced,
-            ths->f + j);
+            nodes->f + j);
       else
         PNX(assign_f_c2c)(
             ths, p, (C*)ths->g2, pre_psi,
             m0, local_ngc, cutoff, interlaced,
-            (C*)ths->f + j);
+            (C*)nodes->f + j);
     } else if(compute_flags & PNFFT_COMPUTE_GRAD_F){
       /* compute grad_f */
       if(ths->pnfft_flags & PNFFT_REAL_F)
@@ -2967,7 +2969,7 @@ static void loop_over_particles_trafo(
 }
 
 static void loop_over_particles_adj(
-    PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
+    PNX(plan) ths, PNX(nodes) nodes, INT *local_no_start, INT *local_ngc, INT *gcells_below,
     int interlaced,
     INT *sorted_index
     )
@@ -3027,11 +3029,11 @@ static void loop_over_particles_adj(
     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
     if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
       PNX(spread_f_r2r)(
-          ths, p, ths->f[j], pre_psi, m0, local_ngc, cutoff, 1, interlaced,
+          ths, p, nodes->f[j], pre_psi, m0, local_ngc, cutoff, 1, interlaced,
           ths->g2);
     else
       PNX(spread_f_c2c)(
-          ths, p, ((C*)ths->f)[j], pre_psi, m0, local_ngc, cutoff, interlaced,
+          ths, p, ((C*)nodes->f)[j], pre_psi, m0, local_ngc, cutoff, interlaced,
           (C*)ths->g2);
   }
 

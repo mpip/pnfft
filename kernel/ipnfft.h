@@ -327,8 +327,7 @@ void PNX(local_block_internal)(
     unsigned pnfft_flags, unsigned trafo_flag,
     INT *local_N, INT *local_N_start);
 PNX(plan) PNX(init_internal)(
-    int d, const INT *N, const INT *n, const INT *no,
-    INT local_M, int m,
+    int d, const INT *N, const INT *n, const INT *no, int m,
     unsigned trafo_flag, unsigned pnfft_flags, unsigned pfft_opt_flags,
     MPI_Comm comm_cart_2d);
 void PNX(trafo_A)(
