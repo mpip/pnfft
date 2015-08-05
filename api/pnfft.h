@@ -51,7 +51,7 @@
 #define PNFFT_DEFINE_API(PNX, PX, X, R, C, INT)                                         \
                                                                                         \
   typedef struct PNX(plan_s) *PNX(plan);                                                \
-  typedef struct PNX(nodes_s) *PNX(plan);                                               \
+  typedef struct PNX(nodes_s) *PNX(nodes);                                              \
                                                                                         \
   PNFFT_EXTERN int PNX(create_procmesh_2d)(                                             \
       MPI_Comm comm, int np0, int np1, MPI_Comm *comm_cart_2d);                         \
@@ -90,27 +90,25 @@
       R *lower_border, R *upper_border);                                                \
                                                                                         \
   PNFFT_EXTERN PNX(plan) PNX(init_3d)(                                                  \
-      const INT *N, INT local_M,                                                        \
+      const INT *N,                                                                     \
       MPI_Comm comm_cart);                                                              \
   PNFFT_EXTERN PNX(plan) PNX(init_3d_c2r)(                                              \
-      const INT *N, INT local_M,                                                        \
+      const INT *N,                                                                     \
       MPI_Comm comm_cart);                                                              \
   PNFFT_EXTERN PNX(plan) PNX(init_adv)(                                                 \
-      int d, const INT *N, INT local_M,                                                 \
+      int d, const INT *N,                                                              \
       unsigned pnfft_flags, unsigned fftw_flags, MPI_Comm comm_cart);                   \
   PNFFT_EXTERN PNX(plan) PNX(init_adv_c2r)(                                             \
-      int d, const INT *N, INT local_M,                                                 \
+      int d, const INT *N,                                                              \
       unsigned pnfft_flags, unsigned fftw_flags, MPI_Comm comm_cart);                   \
   PNFFT_EXTERN PNX(plan) PNX(init_guru)(                                                \
         int d,                                                                          \
-        const INT *N, const INT *n, const R *x_max,                                     \
-        INT local_M, int m,                                                             \
+        const INT *N, const INT *n, const R *x_max, int m,                              \
         unsigned pnfft_flags, unsigned fftw_flags,                                      \
         MPI_Comm comm_cart);                                                            \
   PNFFT_EXTERN PNX(plan) PNX(init_guru_c2r)(                                            \
         int d,                                                                          \
-        const INT *N, const INT *n, const R *x_max,                                     \
-        INT local_M, int m,                                                             \
+        const INT *N, const INT *n, const R *x_max, int m,                              \
         unsigned pnfft_flags, unsigned fftw_flags,                                      \
         MPI_Comm comm_cart);                                                            \
                                                                                         \
@@ -120,7 +118,8 @@
       PNX(nodes) ths, unsigned pnfft_finalize_flags);                                   \
                                                                                         \
   PNFFT_EXTERN void PNX(precompute_psi)(                                                \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
+      PNX(plan) ths, PNX(nodes) nodes,                                                  \
+      unsigned precompute_flags);                                                       \
                                                                                         \
   PNFFT_EXTERN void PNX(set_f)(                                                         \
       C *f, PNX(nodes) ths);                                                            \
@@ -184,18 +183,10 @@
   PNFFT_EXTERN void PNX(finalize)(                                                      \
       PNX(plan) ths, unsigned pnfft_finalize_flags);                                    \
                                                                                         \
-  PNFFT_EXTERN void PNX(direct_trafo)(                                                  \
-      PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);                         \
-  PNFFT_EXTERN void PNX(direct_adj)(                                                    \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
-  PNFFT_EXTERN void PNX(direct_adj_grad)(                                               \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
   PNFFT_EXTERN void PNX(trafo)(                                                         \
       PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);                         \
   PNFFT_EXTERN void PNX(adj)(                                                           \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
-  PNFFT_EXTERN void PNX(adj_grad)(                                                      \
-      PNX(plan) ths, PNX(nodes) nodes);                                                 \
+      PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags);                         \
                                                                                         \
   PNFFT_EXTERN void PNX(init)(                                                          \
       void);                                                                            \
@@ -294,72 +285,98 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 
 /* Use double braces for simple generation of Fortran wrappers */
 
-/* This flags is equal to PRE_PHI_HAT. We introduce it for
- * compliance with the serial NFFT interface. */
-#define PNFFT_PRE_PHI_HUT      (1U<< 0)
-#define PNFFT_PRE_PHI_HAT      (1U<< 0)
-#define PNFFT_FG_PSI           (1U<< 1)
-#define PNFFT_PRE_CONST_PSI    (1U<< 2)
-#define PNFFT_PRE_LIN_PSI      (1U<< 3)
-#define PNFFT_PRE_QUAD_PSI     (1U<< 4)
-#define PNFFT_PRE_CUB_PSI      (1U<< 5)
-#define PNFFT_PRE_PSI          (1U<< 6)
-#define PNFFT_PRE_FG_PSI       ((PNFFT_PRE_PSI| PNFFT_FG_PSI))
-#define PNFFT_PRE_FULL_PSI     (1U<< 7)
-#define PNFFT_PRE_FULL_FG_PSI  ((PNFFT_PRE_FULL_PSI| PNFFT_FG_PSI))
+/***************************************/
+/* Flags for PNFFT plan initialization */
+/***************************************/
 
-#define PNFFT_MALLOC_X         (1U<< 8)
-#define PNFFT_MALLOC_F_HAT     (1U<< 9)
-#define PNFFT_MALLOC_F         (1U<< 10)
-#define PNFFT_MALLOC_GRAD_F    (1U<< 11)
-#define PNFFT_MALLOC_HESSIAN_F (1U<< 12)
+/* PRE_PHI_HUT is introduced for compliance with serial NFFT interface. */
+#define PNFFT_PRE_PHI_HAT           (1U<< 0)
+#define PNFFT_PRE_PHI_HUT           ((PRE_PHI_HAT))
 
-#define PNFFT_FFT_OUT_OF_PLACE (0U)
-#define PNFFT_FFT_IN_PLACE     (1U<< 13)
-#define PNFFT_SORT_NODES       (1U<< 14)
-#define PNFFT_INTERLACED       (1U<< 15)
-#define PNFFT_SHIFTED_F_HAT    (1U<< 16)
-#define PNFFT_SHIFTED_X        (1U<< 17)
-#define PNFFT_TRANSPOSED_NONE  (0U)
-#define PNFFT_TRANSPOSED_F_HAT (1U<< 18)
+#define PNFFT_FAST_GAUSSIAN         (1U<< 1)
 
-#define PNFFT_DIFF_IK          (1U<< 19)
-#define PNFFT_DIFF_AD          (1U<< 20)
+#define PNFFT_PRE_CONST_PSI         (1U<< 2)
+#define PNFFT_PRE_LIN_PSI           (1U<< 3)
+#define PNFFT_PRE_QUAD_PSI          (1U<< 4)
+#define PNFFT_PRE_CUB_PSI           (1U<< 5)
+#define PNFFT_PRE_INTPOL_PSI        ((PNFFT_PRE_CONST_PSI| PNFFT_PRE_LIN_PSI| PNFFT_PRE_QUAD_PSI| PNFFT_PRE_CUB_PSI))
 
-#define PNFFT_GRAD             (1U<< 21)
-#define PNFFT_HESSIAN          (1U<< 22)
+#define PNFFT_MALLOC_F_HAT          (1U<< 6)
 
-/* keep these flags only for backward compability */
-#define PNFFT_GRAD_AD          ((PNFFT_GRAD | PNFFT_DIFF_AD))
-#define PNFFT_GRAD_IK          ((PNFFT_GRAD | PNFFT_DIFF_IK))
+#define PNFFT_FFT_OUT_OF_PLACE      (0U)
+#define PNFFT_FFT_IN_PLACE          (1U<< 7)
+#define PNFFT_INTERLACED            (1U<< 8)
+#define PNFFT_SHIFTED_F_HAT         (1U<< 9)
+#define PNFFT_SHIFTED_X             (1U<< 10)
+#define PNFFT_TRANSPOSED_NONE       (0U)
+#define PNFFT_TRANSPOSED_F_HAT      (1U<< 11)
+
+#define PNFFT_DIFF_IK               (1U<< 12)
+#define PNFFT_DIFF_AD               (1U<< 13)
+
+#define PNFFT_WINDOW_KAISER_BESSEL  (0U)
+#define PNFFT_WINDOW_GAUSSIAN       (1U<< 14)
+#define PNFFT_WINDOW_BSPLINE        (1U<< 15)
+#define PNFFT_WINDOW_SINC_POWER     (1U<< 16)
+#define PNFFT_WINDOW_BESSEL_I0      (1U<< 17)
+
+#define PNFFT_SORT_NODES            (1U<< 18)
+
+
+/*************************************/
+/* Flags for PNFFT plan finalization */
+/**************************************/
+#define PNFFT_FREE_F_HAT       ((PNFFT_MALLOC_F_HAT))
+
+/**************************************/
+/* Flags for PNFFT node initilization */
+/**************************************/
+#define PNFFT_MALLOC_X         (1U<< 0)
+#define PNFFT_MALLOC_F         (1U<< 1)
+#define PNFFT_MALLOC_GRAD_F    (1U<< 2)
+#define PNFFT_MALLOC_HESSIAN_F (1U<< 3)
 
 /* enable some optimizations for real inputs */
-#define PNFFT_REAL_F           (1U<< 23)
+#define PNFFT_REAL_F           (1U<< 4)
 
-/* default window function is Kaiser-Bessel */
-#define PNFFT_WINDOW_KAISER_BESSEL  (0U)
-#define PNFFT_WINDOW_GAUSSIAN       (1U<< 24)
-#define PNFFT_WINDOW_BSPLINE        (1U<< 25)
-#define PNFFT_WINDOW_SINC_POWER     (1U<< 26)
-#define PNFFT_WINDOW_BESSEL_I0      (1U<< 27)
+/***********************************/
+/* Flags for window precomputation */
+/***********************************/
+#define PNFFT_PRE_TENSOR      (0U)
+#define PNFFT_PRE_FULL        (1U<< 0)
+#define PNFFT_PRE_PSI         (1U<< 1)
+#define PNFFT_PRE_GRAD_PSI    (1U<< 2)
+#define PNFFT_PRE_HESSIAN_PSI (1U<< 3)
+
+// #define PNFFT_PRE_ONE_PSI    ((PNFFT_PRE_INTPOL_PSI| PNFFT_PRE_FG_PSI| PNFFT_PRE_PSI| PNFFT_PRE_FULL_PSI))
 
 
-#define PNFFT_PRE_INTPOL_PSI ((PNFFT_PRE_CONST_PSI| PNFFT_PRE_LIN_PSI| PNFFT_PRE_QUAD_PSI| PNFFT_PRE_CUB_PSI))
-#define PNFFT_PRE_ONE_PSI    ((PNFFT_PRE_INTPOL_PSI| PNFFT_PRE_FG_PSI| PNFFT_PRE_PSI| PNFFT_PRE_FULL_PSI))
-
+/*************************************/
+/* Flags for PNFFT node finalization */
+/*************************************/
 #define PNFFT_FREE_X           ((PNFFT_MALLOC_X))
-#define PNFFT_FREE_F_HAT       ((PNFFT_MALLOC_F_HAT))
 #define PNFFT_FREE_F           ((PNFFT_MALLOC_F))
 #define PNFFT_FREE_GRAD_F      ((PNFFT_MALLOC_GRAD_F))
 #define PNFFT_FREE_HESSIAN_F   ((PNFFT_MALLOC_HESSIAN_F))
+#define PNFFT_FREE_ALL         ((PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_GRAD_F | PNFFT_FREE_HESSIAN_F))
 
-#define PNFFT_COMPUTE_F         (1U<<  0)
-#define PNFFT_COMPUTE_GRAD_F    (1U<<  1)
-#define PNFFT_COMPUTE_HESSIAN_F (1U<<  2)
-#define PNFFT_COMPUTE_DECONV    (1U<<  3)
-#define PNFFT_COMPUTE_FFT       (1U<<  4)
-#define PNFFT_COMPUTE_CONV      (1U<<  5)
 
+/*****************************/
+/* Flags for PNFFT execution */
+/*****************************/
+#define PNFFT_COMPUTE_F           (1U<<  0)
+#define PNFFT_COMPUTE_GRAD_F      (1U<<  1)
+#define PNFFT_COMPUTE_HESSIAN_F   (1U<<  2)
+#define PNFFT_COMPUTE_DIRECT      (1U<<  3)
+#define PNFFT_COMPUTE_ACCUMULATED (1U<<  4)
+#define PNFFT_OMIT_DECONV         (1U<<  5)
+#define PNFFT_OMIT_FFT            (1U<<  6)
+#define PNFFT_OMIT_CONV           (1U<<  7)
+
+
+/************************************************/
+/* PNFFT types for command line argument parser */
+/************************************************/
 #define PNFFT_INT            ((PFFT_INT))
 #define PNFFT_PTRDIFF_T      ((PFFT_PTRDIFF_T))
 #define PNFFT_FLOAT          ((PFFT_FLOAT))
@@ -367,9 +384,10 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_LDOUBLE        ((PFFT_LDOUBLE))
 #define PNFFT_UNSIGNED       ((PFFT_UNSIGNED))
 
-/* Make length of Timer public available */
-#define PNFFT_TIMER_LENGTH          (10)
 
+/*********************************/
+/* indizes to access PNFFT timer */
+/*********************************/
 #define PNFFT_TIMER_ITER            (0)
 #define PNFFT_TIMER_WHOLE           (1)
 #define PNFFT_TIMER_LOOP_B          (2)
@@ -381,6 +399,7 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_TIMER_SHIFT_INPUT     (8)
 #define PNFFT_TIMER_SHIFT_OUTPUT    (9)
 
+#define PNFFT_TIMER_LENGTH          (10)
 
 
 

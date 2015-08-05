@@ -24,10 +24,10 @@
 \newcommand{\eip}[1]{\ensuremath{\mathrm{e}^{+2\pi{\ti} #1}}}
 \renewcommand{\mathbf}[1]{\ensuremath{\boldsymbol{#1}}}
 \newcommand{\ds}{\displaystyle}
-\newcommand{\sinc}{{\rm sinc}}
-\newcommand{\dist}{{\rm dist}}
-\newcommand{\erf}{{\rm erf}}
-\newcommand{\erfc}{{\rm erfc}}
+\newcommand{\sinc}{\textrm{sinc}}
+\newcommand{\dist}{\textrm{dist}}
+\newcommand{\erf}{\textrm{erf}}
+\newcommand{\erfc}{\textrm{erfc}}
 \newcommand{\adj}{{\vdash \hspace*{-1.72mm} \dashv}}
 \DeclareMathOperator{\diag}{diag}
 \DeclareMathOperator{\dd}{d}
@@ -60,19 +60,19 @@
 \newcommand{\nfftversionsl}{\textsl{\nfftversion}}
 
 \newcommand{\fftw}{\textsf{FFTW}}
-\newcommand{\fftwversion}{\textsf{3.3.2}}
+\newcommand{\fftwversion}{3.3.3}
+\newcommand{\fftwversionsf}{\textsf{\fftwversion}}
 \newcommand{\fftwversionsl}{\textsl{\fftwversion}}
 
 \newcommand{\pfft}{\textsf{PFFT}}
-\newcommand{\pfftversion}{1.0.5-alpha}
+\newcommand{\pfftversion}{1.0.8-alpha}
+\newcommand{\pfftversionsf}{\textsf{\pfftversion}}
 \newcommand{\pfftversionsl}{\textsl{\pfftversion}}
 
 \newcommand{\pnfft}{\textsf{PNFFT}}
-\newcommand{\pnfftversion}{1.0.3-alpha}
+\newcommand{\pnfftversion}{1.0.7-alpha}
+\newcommand{\pnfftversionsf}{\textsf{\pnfftversion}}
 \newcommand{\pnfftversionsl}{\textsl{\pnfftversion}}
-
-\newcommand{\fftwaversion}{3.3alpha1}
-\newcommand{\fftwaversionsl}{\textsl{\fftwaversion}}
 
 \newcommand{\ppnfft}{\textsf{P$^2$NFFT}}
 \newcommand{\ppnfftcap}{\texorpdfstring{\ppnfft}{\textsf{P\texttwosuperior NFFT}}}
@@ -132,23 +132,30 @@
   \renewcommand{\ttdefault}{pcr}
   % \renewcommand{\lstlistingname}{\bfseries Quelltext}
   \lstset{language = C,
-	morekeywords={ptrdiff_t, fftw_complex, pfft_plan, pfft_gcplan, MPI_Comm, size_t, INT,
-	              PX, R, C, X, XM, complex, nfplan},
+        morekeywords={ptrdiff_t, fftw_complex, pfft_plan, pfft_gcplan, pfft_timer, pfft_complex, MPI_Comm, size_t, INT, pfft_gctimer,
+                      pfftf_complex, double, float, long double,
+                      PX, R, C, X, XM, complex, nfplan},
+%	morekeywords={ptrdiff_t, fftw_complex, pfft_plan, pfft_gcplan, MPI_Comm, size_t, INT,
+% 	              PX, R, C, X, XM, complex, nfplan},
 %         morekeywords={ptrdiff_t, nfft_mpi_plan, nfft_mpi_init_guru, nfft_mpi_init_nodes, MPI_Init,
 %           fftw_mpi_init, MPI_Comm_size, nfft_trafo_par3d, nfft_adjoint_par3d, fftw_mpi_cleanup, MPI_Finalize, nfft_mpi_finalize, main},
-	basicstyle = \ttfamily\small,
-	commentstyle = \slshape,
-	keywordstyle = {\bfseries},
-	backgroundcolor = \color{LightGray!40},
-	numbers = left,
-	breaklines = true,
-  %   	xleftmargin = 3em,
-  %   	prebreak = {...},
-	breakatwhitespace = true,
-	showstringspaces = false,
-	float, % Listings are float objects, doesn't work for unknown reason
-	escapeinside = {(*@}{@*)}}
-  % 
+        deletekeywords={sizeof,return},
+        basicstyle = \ttfamily\small,
+        identifierstyle=,
+        commentstyle = \slshape\footnotesize,
+        keywordstyle = \bfseries,
+        backgroundcolor = \color{LightGray!40},
+%       numbers = left,
+        breaklines = true,
+  %     xleftmargin = 3em,
+  %     prebreak = {...},
+        breakatwhitespace = true,
+        showstringspaces = false,
+        escapeinside = {(*@}{@*)},
+        moredelim=**[is][\color{red}]{(red@}{@*)},
+        moredelim=**[is][\color{green}]{(gre@}{@*)},
+        moredelim=**[is][\color{blue}]{(blu@}{@*)},
+        }
   % \lstdefinestyle{txt}{language= C, 
   %       basicstyle = \sffamily\small,
   %       breaklines = true,
@@ -162,8 +169,8 @@
   %       numbers=none,
   %       belowskip= -2ex}
   % 
-  \newcommand{\code}[1]{\linebreak[2]{\ttfamily #1}}
 %   \newcommand{\code}[1]{\lstinline!#1!}
+  \newcommand{\code}[2][\empty]{\ifthenelse{\equal{#1}{\empty}}{\lstinline!#2!}{\lstinline[#1]!#2!}}
 }
 
 %% own enviroment for case differentiation

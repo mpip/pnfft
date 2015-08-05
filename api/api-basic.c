@@ -175,55 +175,6 @@ static void trafo_F_and_B_ik_complex_input(
   }
 }
 
-void PNX(direct_trafo)(
-    PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags
-    )
-{
-  if(ths==NULL){
-    PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
-    return;
-  }
-
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
-  
-  PNX(trafo_A)(ths, nodes, compute_flags);
-
-  ths->timer_trafo[PNFFT_TIMER_ITER]++;
-  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
-}
-
-
-static void direct_adj(
-    PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags
-    )
-{
-  if(ths==NULL){
-    PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
-    return;
-  }
-
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
-
-  PNX(adj_A)(ths, compute_flags);
-
-  ths->timer_adj[PNFFT_TIMER_ITER]++;
-  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
-}
-
-
-void PNX(direct_adj)(
-    PNX(plan) ths, PNX(nodes) nodes
-    )
-{
-  direct_adj(ths, nodes, PNFFT_COMPUTE_F);
-}
-
-void PNX(direct_adj_grad)(
-    PNX(plan) ths, PNX(nodes) nodes
-    )
-{
-  direct_adj(ths, nodes, PNFFT_COMPUTE_GRAD_F);
-}
 
 static void trafo(
     PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags
@@ -258,6 +209,16 @@ void PNX(trafo)(
 
   if(ths==NULL){
     PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
+    return;
+  }
+
+  if(compute_flags & PNFFT_COMPUTE_DIRECT){
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
+
+    PNX(trafo_A)(ths, nodes, compute_flags);
+    
+    ths->timer_trafo[PNFFT_TIMER_ITER]++;
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
     return;
   }
 
@@ -369,12 +330,22 @@ static void adj(
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 }
 
-static void adj_f_or_grad_f(
-    PNX(plan) ths, unsigned compute_flags
+void PNX(adj)(
+    PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags
     )
 {
   if(ths==NULL){
     PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
+    return;
+  }
+
+  if(compute_flags & PNFFT_COMPUTE_DIRECT){
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
+
+    PNX(adj_A)(ths, compute_flags);
+
+    ths->timer_adj[PNFFT_TIMER_ITER]++;
+    PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
     return;
   }
 
@@ -399,20 +370,6 @@ static void adj_f_or_grad_f(
 
   ths->timer_adj[PNFFT_TIMER_ITER]++;
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
-}
-
-void PNX(adj)(
-    PNX(plan) ths
-    )
-{
-  adj_f_or_grad_f(ths, PNFFT_COMPUTE_F);
-}
-
-void PNX(adj_grad)(
-    PNX(plan) ths
-    )
-{
-  adj_f_or_grad_f(ths, PNFFT_COMPUTE_GRAD_F);
 }
 
 PNX(nodes) PNX(init_nodes)(
