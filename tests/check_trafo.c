@@ -51,6 +51,8 @@ int main(int argc, char **argv){
     case 1: window_flag = PNFFT_WINDOW_BSPLINE; break;
     case 2: window_flag = PNFFT_WINDOW_SINC_POWER; break;
     case 3: window_flag = PNFFT_WINDOW_BESSEL_I0; break;
+    case 4: window_flag = PNFFT_WINDOW_KAISER_BESSEL; break;
+    case 5: window_flag = PNFFT_WINDOW_GAUSSIAN_T; break;
     default: window_flag = PNFFT_WINDOW_KAISER_BESSEL;
   }
 
@@ -66,6 +68,8 @@ int main(int argc, char **argv){
     case 1: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BSPLINE) "); break;
     case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_SINC_POWER) "); break;
     case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BESSEL_I0) "); break;
+    case 4: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
+    case 5: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_GAUSSIAN_T) "); break;
     default: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_window *),\n");

@@ -34,6 +34,35 @@
   pnfft_exp(-PNFFT_SQR(PNFFT_PI*(R)(k)/(n)) * (b) )
 
 /* The factor 1/n from matrix D cancels with the factor n of the inverse Fourier coefficients. */
+static inline R inv_phi_hat_gauss_t(
+    INT k, INT n, R b, int m
+    )
+{
+  R sqrtb = pnfft_sqrt(b);
+  
+  C w = cerf( (R)m/sqrtb + PNFFT_PI * (R)k * sqrtb / (R)n * I );
+  R coeff = creal(w) * pnfft_exp( -PNFFT_SQR( PNFFT_PI * (R)k / (R)n ) * b );
+//   fprintf(stderr, "%1.16f\n", coeff);
+  return 1.0 / coeff;
+  
+//   /* Variant 2 */
+//   R x = 2.0 * PNFFT_PI * (R)m * (R)k / (R)n;
+//   C w = w_of_z( (R)m/sqrtb * I - PNFFT_PI * sqrtb * (R)k / (R)n ) * ( cos(x) - I * sin(x) );
+//   R r = creal(w);
+//   R coeff = pnfft_exp(-PNFFT_SQR( PNFFT_PI * (R)k / (R)n ) * (R)b ) - r*pnfft_exp( -(R)m*(R)m/(R)b );
+//   return 1.0/coeff;
+  /* non truncated Gaussian: pnfft_exp( PNFFT_SQR( PNFFT_PI * (R)k / (R)n ) * b ) */
+}
+
+static inline R phi_hat_gauss_t(
+    INT k, INT n, R b, int m
+    )
+{
+  R sqrtb = pnfft_sqrt(b);
+  C w = cerf( (R)m/sqrtb + PNFFT_PI * (R)k * sqrtb / (R)n * I );
+  return pnfft_exp( -PNFFT_SQR( PNFFT_PI * (R)k / (R)n ) * b ) * creal(w);
+}
+
 static inline R inv_phi_hat_kaiser(
     INT k, INT n, R b, int m
     )
@@ -150,7 +179,9 @@ R PNX(inv_phi_hat)(
     const PNX(plan) ths, int dim, INT k
     )
 {
-  if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
+  if((ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN) && (ths->pnfft_flags & PNFFT_USE_FK_GAUSSIAN_T))
+    return inv_phi_hat_gauss_t(k, ths->n[dim], ths->b[dim], ths->m);
+  else if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
     return PNFFT_INV_PHI_HAT_GAUSS(k, ths->n[dim], ths->b[dim]);
   else if(ths->pnfft_flags & PNFFT_WINDOW_BSPLINE)
     return PNFFT_INV_PHI_HAT_BSPLINE(k, ths->n[dim], ths->m);
@@ -166,7 +197,9 @@ R PNX(phi_hat)(
     const PNX(plan) ths, int dim, INT k
     )
 {
-  if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
+  if((ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN) && (ths->pnfft_flags & PNFFT_USE_FK_GAUSSIAN_T))
+    return phi_hat_gauss_t(k, ths->n[dim], ths->b[dim], ths->m);
+  else if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN)
     return PNFFT_PHI_HAT_GAUSS(k, ths->n[dim], ths->b[dim]);
   else if(ths->pnfft_flags & PNFFT_WINDOW_BSPLINE)
     return PNFFT_PHI_HAT_BSPLINE(k, ths->n[dim], ths->m);
