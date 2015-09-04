@@ -164,7 +164,7 @@ typedef struct PNX(nodes_s){
   R *hessian_f;               /**< Upper triangle of the Hessian                   */
   R *x;                       /**< Nodes in time/spatial domain                    */
 
-  unsigned compute_flags;     /**< Flags for choice of NFFT results                */
+//   unsigned compute_flags;     /**< Flags for choice of NFFT results                */
 
   R *pre_psi;                 /**< Precomputed window function values              */
   R *pre_dpsi;                /**< Precomputed window function derivatives         */

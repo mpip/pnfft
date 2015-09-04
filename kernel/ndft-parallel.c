@@ -952,7 +952,7 @@ PNX(plan) PNX(init_internal)(
 
   /* For derivative in Fourier space we need an extra buffer
    * (since we need to scale the output of the forward FFT with three different factors) */
-  if(ths->pnfft_flags & PNFFT_GRAD_IK)
+  if(ths->pnfft_flags & PNFFT_DIFF_IK)
     ths->g1_buffer = (ths->local_N_total) ? PNX(alloc_real)(2 * ths->local_N_total) : NULL;
   else
     ths->g1_buffer = NULL;
@@ -1054,7 +1054,6 @@ PNX(plan) PNX(init_internal)(
       ths->b[t] = (R) PNFFT_PI * (K(2.0) - K(1.0)/ths->sigma[t]);
 #if TUNE_B_FOR_EWALD_SPLITTING
     for(int t=0; t<ths->d; t++)
-//       ths->b[t]= 5.35;
       ths->b[t]= 5.7177;
 #endif
   }
@@ -1099,24 +1098,20 @@ void PNX(init_precompute_window)(
     }
 
     if( ths->pnfft_flags & PNFFT_DIFF_AD ){
-      if( ths->pnfft_flags & (PNFFT_GRAD | PNFFT_HESSIAN) ){
-        if(ths->intpol_tables_dpsi == NULL)
-          ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
-        for(int t=0; t<ths->d; t++){
-          ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-          init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 1, ths,
-              ths->intpol_tables_dpsi[t]);
-        }
+      if(ths->intpol_tables_dpsi == NULL)
+        ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
+      for(int t=0; t<ths->d; t++){
+        ths->intpol_tables_dpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
+        init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 1, ths,
+            ths->intpol_tables_dpsi[t]);
       }
 
-      if( ths->pnfft_flags & PNFFT_HESSIAN ){
-        if(ths->intpol_tables_ddpsi == NULL)
-          ths->intpol_tables_ddpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
-        for(int t=0; t<ths->d; t++){
-          ths->intpol_tables_ddpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
-          init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 2, ths,
-              ths->intpol_tables_ddpsi[t]);
-        }
+      if(ths->intpol_tables_ddpsi == NULL)
+        ths->intpol_tables_ddpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
+      for(int t=0; t<ths->d; t++){
+        ths->intpol_tables_ddpsi[t] = (R*) PNX(malloc)(sizeof(R)*(ths->intpol_num_nodes * ths->cutoff * (ths->intpol_order+1)));
+        init_intpol_table_psi(ths->intpol_num_nodes, ths->intpol_order, ths->cutoff, ths->n[t], ths->m, t, 2, ths,
+            ths->intpol_tables_ddpsi[t]);
       }
     }
   }
@@ -1142,19 +1137,18 @@ void PNX(init_precompute_window)(
 
 /* x and local_M must be initialized */
 void PNX(precompute_psi)(
-    PNX(plan) ths, PNX(nodes) nodes
+    PNX(plan) ths, PNX(nodes) nodes, unsigned precompute_flags
     )
 {
-  INT size;
   INT *sorted_index = NULL;
   R *buffer_psi=NULL, *buffer_dpsi=NULL, *buffer_ddpsi=NULL;
   R x[3];
-  int compute_grad_ad, compute_hessian_ad;
- 
-  compute_grad_ad = (ths->pnfft_flags & PNFFT_DIFF_AD)
-                    && (nodes->compute_flags & PNFFT_COMPUTE_GRAD_F);
-  compute_hessian_ad = (ths->pnfft_flags & PNFFT_DIFF_AD)
-                    && (nodes->compute_flags & PNFFT_COMPUTE_HESSIAN_F);
+  int use_func = 0, use_grad = 0, use_hess = 0;
+  use_func = precompute_flags & PNFFT_PRE_PSI;
+  if(ths->pnfft_flags & PNFFT_DIFF_AD){
+    use_grad = precompute_flags & PNFFT_PRE_GRAD_PSI;
+    use_hess = precompute_flags & PNFFT_PRE_HESSIAN_PSI;
+  }
 
   /* cleanup old precomputations */
   if(nodes->pre_psi != NULL)
@@ -1170,47 +1164,39 @@ void PNX(precompute_psi)(
   if(nodes->pre_ddpsi_il != NULL)
     PNX(free)(nodes->pre_ddpsi_il);
 
-  if(!(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
+  if( !use_psi && !use_dpsi && !use_ddpsi )
     return;
 
   /* allocate memory */
-  if(ths->pnfft_flags & PNFFT_PRE_PSI){
-    size = 3 * ths->cutoff * nodes->local_M;
-    nodes->pre_psi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    if(ths->pnfft_flags & PNFFT_INTERLACED)
-      nodes->pre_psi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    if(compute_hessian_ad){
-      nodes->pre_dpsi  = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-      nodes->pre_ddpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-      if(ths->pnfft_flags & PNFFT_INTERLACED)
-        nodes->pre_dpsi_il  = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-        nodes->pre_ddpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    } else if(compute_grad_ad){
-      nodes->pre_dpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-      if(ths->pnfft_flags & PNFFT_INTERLACED)
-        nodes->pre_dpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    }
-  }
-
+  INT size_psi, size_dpsi, size_ddpsi;
   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI){
-    size = PNFFT_POW3(ths->cutoff) * nodes->local_M;
-    nodes->pre_psi = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    if(ths->pnfft_flags & PNFFT_INTERLACED)
-      nodes->pre_psi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size) : NULL;
-    if(compute_hessian_ad){
-      nodes->pre_dpsi  = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
-      nodes->pre_ddpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
-      if(ths->pnfft_flags & PNFFT_INTERLACED)
-        nodes->pre_dpsi_il  = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
-        nodes->pre_ddpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
-    } else if(compute_grad_ad){
-      nodes->pre_dpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
-      if(ths->pnfft_flags & PNFFT_INTERLACED)
-        nodes->pre_dpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * 3 * size) : NULL;
-    }
+    size_psi   = PNFFT_POW3(ths->cutoff) * nodes->local_M;
+    size_dpsi  = PNFFT_POW3(ths->cutoff) * nodes->local_M * 3;
+    size_ddpsi = PNFFT_POW3(ths->cutoff) * nodes->local_M * 6;
+  } else {
+    size_psi   = 3 * ths->cutoff * nodes->local_M;
+    size_dpsi  = 3 * ths->cutoff * nodes->local_M;
+    size_ddpsi = 3 * ths->cutoff * nodes->local_M;
   }
 
-  /* save precomputations in the same order as need in matrix B */
+  if(use_func || use_grad || use_hess ){ /* gradient needs psi and dpsi */
+    nodes->pre_psi = (size) ? (R*) PNX(malloc)(sizeof(R) * size_psi) : NULL;
+    if(ths->pnfft_flags & PNFFT_INTERLACED)
+      nodes->pre_psi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size_psi) : NULL;
+  }
+  if( use_grad || use_hess ){ /* Hessian needs dpsi and ddpsi */ 
+      nodes->pre_dpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size_dpsi) : NULL;
+      if(ths->pnfft_flags & PNFFT_INTERLACED)
+        nodes->pre_dpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size_dpsi) : NULL;
+    }
+  }
+  if( use_hess ){
+    nodes->pre_ddpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size_ddpsi) : NULL;
+    if(ths->pnfft_flags & PNFFT_INTERLACED)
+      nodes->pre_ddpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size_ddpsi) : NULL;
+  }
+
+  /* save precomputations in the same order as needed in matrix B */
   if(ths->pnfft_flags & PNFFT_SORT_NODES){
     sorted_index = (INT*) PNX(malloc)(sizeof(INT) * (size_t) 2*nodes->local_M);
     sort_nodes_for_better_cache_handle(
@@ -1218,20 +1204,21 @@ void PNX(precompute_psi)(
         sorted_index);
   }
 
-  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI){
-    buffer_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
-    if(compute_hessian_ad){
+  if(ths->pnfft_flags & PNFFT_PRE_FULL){
+    if( use_func || use_grad || use_hess )
+      buffer_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
+    if( use_grad || use_hess )
       buffer_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
+    if( use_hess )
       buffer_ddpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
-    } else if(compute_grad_ad)
-      buffer_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
   }
+
   for(INT p=0; p<nodes->local_M; p++){
     INT j = (ths->pnfft_flags & PNFFT_SORT_NODES) ? sorted_index[2*p+1] : p;
 
     for(int t=0; t<3; t++)
       x[t] = nodes->x[ths->d*j+t];
-    precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, compute_grad_ad, compute_hessian_ad,
+    precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, use_grad, use_hess,
         nodes->pre_psi, nodes->pre_dpsi, nodes->pre_ddpsi);
 
     if(ths->pnfft_flags & PNFFT_INTERLACED){
@@ -1241,7 +1228,7 @@ void PNX(precompute_psi)(
         if(x[t] >= 0.5)
           x[t] -= 1.0;
       }
-      precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, compute_grad_ad, compute_hessian_ad,
+      precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, use_grad, use_hess,
           nodes->pre_psi_il, nodes->pre_dpsi_il, nodes->pre_ddpsi_il);
     }
   }
@@ -1258,7 +1245,7 @@ void PNX(precompute_psi)(
 
 static void precompute_psi(
     PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi, R* buffer_ddpsi,
-    int compute_grad_ad, int compute_hessian_ad,
+    unsigned precompute_flags,
     R* pre_psi, R* pre_dpsi, R* pre_ddpsi
     )
 {
@@ -1267,43 +1254,20 @@ static void precompute_psi(
   for(int t=0; t<3; t++)
     floor_nx[t] = pnfft_floor(ths->n[t]*x[t]);
 
-  if(ths->pnfft_flags & PNFFT_PRE_PSI){
-    /* shift index to current particle */
-    pre_psi += ind * 3 * cutoff;
-    if(compute_hessian_ad){
-      pre_dpsi += ind * 3 * cutoff;
-      pre_ddpsi += ind * 3 * cutoff;
-    } else if(compute_grad_ad)
-      pre_dpsi += ind * 3 * cutoff;
-
-    pre_psi_tensor(
-        ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx,
-        ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
-        ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
-        pre_psi);
-
-    if( compute_grad_ad || compute_hessian_ad )
-      pre_dpsi_tensor(
-          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
-          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
-          pre_psi, ths->pnfft_flags,
-          pre_dpsi);
-
-    if(compute_hessian_ad)
-      pre_ddpsi_tensor(
-          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
-          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
-          pre_psi, pre_dpsi, ths->pnfft_flags,
-          pre_ddpsi);
+  int use_func = 0, use_grad = 0, use_hess = 0;
+  use_func = precompute_flags & PNFFT_PRE_PSI;
+  if(ths->pnfft_flags & PNFFT_DIFF_AD){
+    use_grad = precompute_flags & PNFFT_PRE_GRAD_PSI;
+    use_hess = precompute_flags & PNFFT_PRE_HESSIAN_PSI;
   }
-  else if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI){
+
+  if(precompute_flags & PNFFT_PRE_FULL){
     /* shift index to current particle */
-    pre_psi += ind * PNFFT_POW3(cutoff);
-
-    if( compute_grad_ad || compute_hessian_ad )
+    if( use_func || use_grad || use_hess )
+      pre_psi += ind * PNFFT_POW3(cutoff);
+    if( use_grad || use_hess )
       pre_dpsi += 3 * ind * PNFFT_POW3(cutoff);
-
-    if(compute_hessian_ad)
+    if( use_hess )
       pre_ddpsi += 3 * ind * PNFFT_POW3(cutoff);
 
     pre_psi_tensor(
@@ -1312,22 +1276,24 @@ static void precompute_psi(
         ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
         buffer_psi);
 
-    INT m=0;
-    for(INT l0=0; l0<cutoff; l0++){
-      for(INT l1=cutoff; l1<2*cutoff; l1++){
-        R psi_xy  = buffer_psi[l0] * buffer_psi[l1];
-        for(INT l2=2*cutoff; l2<3*cutoff; l2++){
-          pre_psi[m++] = psi_xy * buffer_psi[l2];
+    if( use_func || use_grad || use_hess ){
+      INT m=0;
+      for(INT l0=0; l0<cutoff; l0++){
+        for(INT l1=cutoff; l1<2*cutoff; l1++){
+          R psi_xy  = buffer_psi[l0] * buffer_psi[l1];
+          for(INT l2=2*cutoff; l2<3*cutoff; l2++){
+            pre_psi[m++] = psi_xy * buffer_psi[l2];
+          }
         }
       }
     }
 
-    if( compute_grad_ad || compute_hessian_ad ){
-        pre_dpsi_tensor(
-            ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
-            ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
-            buffer_psi, ths->pnfft_flags,
-            buffer_dpsi);
+    if( use_grad || use_hess ){
+      pre_dpsi_tensor(
+          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
+          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
+          buffer_psi, ths->pnfft_flags,
+          buffer_dpsi);
         
       INT md=0;
       for(INT l0=0; l0<cutoff; l0++){
@@ -1344,12 +1310,12 @@ static void precompute_psi(
       }
     }
 
-    if(compute_hessian_ad){
-        pre_ddpsi_tensor(
-            ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
-            ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
-            buffer_psi, buffer_dpsi, ths->pnfft_flags,
-            buffer_ddpsi);
+    if( use_hess ){
+      pre_ddpsi_tensor(
+          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
+          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
+          buffer_psi, buffer_dpsi, ths->pnfft_flags,
+          buffer_ddpsi);
 
       INT mdd=0;
       for(INT l0=0; l0<cutoff; l0++){
@@ -1371,6 +1337,35 @@ static void precompute_psi(
         }
       }
     }
+  } else {
+    /* shift index to current particle */
+    if( use_func || use_grad || use_hess )
+      pre_psi += ind * 3 * cutoff;
+    if( use_grad || use_hess )
+      pre_dpsi += ind * 3 * cutoff;
+    if( use_hess )
+      pre_ddpsi += ind * 3 * cutoff;
+
+    if( use_func || use_grad || use_hess )
+      pre_psi_tensor(
+          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx,
+          ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
+          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
+          pre_psi);
+
+    if( use_grad || use_hess )
+      pre_dpsi_tensor(
+          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
+          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
+          pre_psi, ths->pnfft_flags,
+          pre_dpsi);
+
+    if( use_hess )
+      pre_ddpsi_tensor(
+          ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
+          ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
+          pre_psi, pre_dpsi, ths->pnfft_flags,
+          pre_ddpsi);
   }
 }
 
@@ -1631,7 +1626,7 @@ static void pre_psi_tensor_direct(
     )
 {
   if(pnfft_flags & PNFFT_WINDOW_GAUSSIAN){
-    if(pnfft_flags & PNFFT_FG_PSI)
+    if(pnfft_flags & PNFFT_FAST_GAUSSIAN)
       pre_psi_tensor_fast_gaussian(
           n, b, m, cutoff, x, floor_nx, exp_const,
           pre_psi);

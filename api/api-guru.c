@@ -27,8 +27,7 @@ static void fft_output_size(
     const INT *n, const R *x_max, int m,
     INT *no);
 static PNX(plan) PNX(init_guru_internal)(
-    int d, const INT *N, const INT *n, const R *x_max,
-    INT local_M, int m,
+    int d, const INT *N, const INT *n, const R *x_max, int m,
     unsigned trafo_flag, unsigned pnfft_flags, unsigned pfft_flags,
     MPI_Comm comm_cart);
 static void local_size_guru_internal(
@@ -63,24 +62,22 @@ void PNX(local_size_guru_c2r)(
 
 
 PNX(plan) PNX(init_guru)(
-    int d, const INT *N, const INT *n, const R *x_max,
-    INT local_M, int m,
+    int d, const INT *N, const INT *n, const R *x_max, int m,
     unsigned pnfft_flags, unsigned pfft_flags,
     MPI_Comm comm_cart
     )
 {
-  return PNX(init_guru_internal)(d, N, n, x_max, local_M, m, PNFFTI_TRAFO_C2C, pnfft_flags, pfft_flags, comm_cart);
+  return PNX(init_guru_internal)(d, N, n, x_max, m, PNFFTI_TRAFO_C2C, pnfft_flags, pfft_flags, comm_cart);
 }
 
 
 PNX(plan) PNX(init_guru_c2r)(
-    int d, const INT *N, const INT *n, const R *x_max,
-    INT local_M, int m,
+    int d, const INT *N, const INT *n, const R *x_max, int m,
     unsigned pnfft_flags, unsigned pfft_flags,
     MPI_Comm comm_cart
     )
 {
-  return PNX(init_guru_internal)(d, N, n, x_max, local_M, m, PNFFTI_TRAFO_C2R, pnfft_flags, pfft_flags, comm_cart);
+  return PNX(init_guru_internal)(d, N, n, x_max, m, PNFFTI_TRAFO_C2R, pnfft_flags, pfft_flags, comm_cart);
 }
 
 
@@ -111,8 +108,7 @@ static void local_size_guru_internal(
 
 
 static PNX(plan) PNX(init_guru_internal)(
-    int d, const INT *N, const INT *n, const R *x_max,
-    INT local_M, int m,
+    int d, const INT *N, const INT *n, const R *x_max, int m,
     unsigned trafo_flag, unsigned pnfft_flags, unsigned pfft_flags,
     MPI_Comm comm_cart
     )
@@ -151,7 +147,7 @@ static PNX(plan) PNX(init_guru_internal)(
   pnfft_flags |= PNFFT_WINDOW_SINC_POWER;
 #endif
 
-  ths = PNX(init_internal)(d, N, n, no, local_M, m, trafo_flag, pnfft_flags, pfft_opt_flags, comm_cart);
+  ths = PNX(init_internal)(d, N, n, no, m, trafo_flag, pnfft_flags, pfft_opt_flags, comm_cart);
 
   /* Quick fix to save x_max in PNFFT plan */
   for(int t=0; t<d; t++)

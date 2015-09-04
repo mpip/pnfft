@@ -1,4 +1,4 @@
-% \documentclass[a4paper,twoside,11pt,final,openright,headsepline,parskip]{scrreprt}
+\PassOptionsToPackage{pdfpagelabels=true}{hyperref}
 \documentclass[a4paper,11pt,final,openright,headsepline]{scrreprt}
 % parskip: no indentation of paragraphs, german style
 %\usepackage{layout} % show layout boarders
@@ -27,8 +27,9 @@
 \usepackage{graphicx} % Graphics for figures
 \usepackage[svgnames, table, hyperref]{xcolor} % 
 \usepackage{paralist} % compact itemize, enumerate, ...
-% \usepackage{listings} % source code in LaTeX
-% \usepackage{multirow} % combine multiple rows in arrays
+\usepackage{listings} % source code in LaTeX
+\usepackage{multirow} % combine multiple rows in arrays
+\usepackage{rotating}
 
 %% improvements of LaTeX enviroments
 \usepackage{scrhack} % avoid warning of scrreprt when loading float package
@@ -53,9 +54,23 @@ pdfauthor={Michael Pippig}, pdfstartview={FitBH}}
 % \floatname{algorithm}{Algorithmus} % use german title for algorithms
 % \numberwithin{algorithm}{chapter}
 
+
+%% activate for algorithms
+\usepackage{algpseudocode}
+\usepackage[chapter]{algorithm}
+\usepackage{algorithmicx}
+% \floatname{algorithm}{Algorithmus} % use german title for algorithms
+% \numberwithin{algorithm}{chapter}
+
+\usepackage{xspace}
+\usepackage{nicefrac}
+
+\usepackage{todonotes}
+
+
 %% activate for compact page layout
-\usepackage{geometry}
-\geometry{top=30.4mm, left=30.4mm, text={155mm,240mm}, headheight=10mm, headsep=5mm, includemp, marginparwidth=15.4mm}
+% \usepackage{geometry}
+% \geometry{top=30.4mm, left=30.4mm, text={155mm,240mm}, headheight=10mm, headsep=5mm, includemp, marginparwidth=15.4mm}
 
 %% activate for headline with chapter information on every page
 \usepackage{scrpage2}
@@ -69,6 +84,8 @@ pdfauthor={Michael Pippig}, pdfstartview={FitBH}}
 \ofoot[]{}
 \cfoot[]{}
 \ifoot[]{}
+
+\renewcommand*{\thefootnote}{\fnsymbol{footnote}}
 
 %% the quotchap document style redeﬁnes the \chapter and \chapter* commands to
 %% create fancy chapter head pages with huge chapter numbers (possibly greyed) and
@@ -234,6 +251,124 @@ One-dimensional example
 \end{align*}
 
 
+
+\section{Init plans}
+
+\begin{lstlisting}
+  PNFFT_EXTERN PNX(plan) PNX(init_guru)(
+        int d,
+        const INT *N, const INT *n, const R *x_max,
+        INT local_M, int m,
+        unsigned pnfft_flags, unsigned fftw_flags,
+        MPI_Comm comm_cart);
+\end{lstlisting}
+
+\begin{lstlisting}
+#define PNFFT_PRE_PHI_HAT           (1U<< 0)
+#define PNFFT_PRE_PHI_HUT           ((PRE_PHI_HAT))
+
+#define PNFFT_FG_PSI                (1U<< 1)
+
+#define PNFFT_PRE_CONST_PSI         (1U<< 2)
+#define PNFFT_PRE_LIN_PSI           (1U<< 3)
+#define PNFFT_PRE_QUAD_PSI          (1U<< 4)
+#define PNFFT_PRE_CUB_PSI           (1U<< 5)
+#define PNFFT_PRE_INTPOL_PSI        ((PNFFT_PRE_CONST_PSI| PNFFT_PRE_LIN_PSI| PNFFT_PRE_QUAD_PSI| PNFFT_PRE_CUB_PSI))
+
+#define PNFFT_MALLOC_F_HAT          (1U<< 6)
+\end{lstlisting}
+\begin{lstlisting}
+#define PNFFT_FFT_OUT_OF_PLACE      (0U)
+#define PNFFT_FFT_IN_PLACE          (1U<< 7)
+#define PNFFT_INTERLACED            (1U<< 8)
+#define PNFFT_SHIFTED_F_HAT         (1U<< 9)
+#define PNFFT_SHIFTED_X             (1U<< 10)
+#define PNFFT_TRANSPOSED_NONE       (0U)
+#define PNFFT_TRANSPOSED_F_HAT      (1U<< 11)
+
+#define PNFFT_DIFF_IK               (1U<< 12)
+#define PNFFT_DIFF_AD               (1U<< 13)
+
+#define PNFFT_WINDOW_KAISER_BESSEL  (0U)
+#define PNFFT_WINDOW_GAUSSIAN       (1U<< 14)
+#define PNFFT_WINDOW_BSPLINE        (1U<< 15)
+#define PNFFT_WINDOW_SINC_POWER     (1U<< 16)
+#define PNFFT_WINDOW_BESSEL_I0      (1U<< 17)
+
+#define PNFFT_SORT_NODES            (1U<< 18)
+\end{lstlisting}
+
+% #define PNFFT_PRE_ONE_PSI    ((PNFFT_PRE_INTPOL_PSI| PNFFT_PRE_FG_PSI| PNFFT_PRE_PSI| PNFFT_PRE_FULL_PSI))
+
+
+
+\begin{lstlisting}
+  PNX(nodes) PNX(init_nodes)(
+      INT local_M, unsigned pnfft_flags);
+\end{lstlisting}
+\begin{lstlisting}
+#define PNFFT_MALLOC_X         (1U<< 0)
+#define PNFFT_MALLOC_F         (1U<< 1)
+#define PNFFT_MALLOC_GRAD_F    (1U<< 2)
+#define PNFFT_MALLOC_HESSIAN_F (1U<< 3)
+
+#define PNFFT_REAL_F           (1U<< 4)
+\end{lstlisting}
+
+
+
+\begin{lstlisting}
+  void PNX(precompute_psi)(
+      PNX(plan) ths, PNX(nodes) nodes, unsigned precompute_flags);
+\end{lstlisting}
+\begin{lstlisting}
+#define PNFFT_PRE_TENSOR      (0U)
+#define PNFFT_PRE_FULL        (1U<< 0)
+#define PNFFT_PRE_PSI         (1U<< 1)
+#define PNFFT_PRE_GRAD_PSI    (1U<< 2)
+#define PNFFT_PRE_HESSIAN_PSI (1U<< 3)
+\end{lstlisting}
+Pre-computation uses the kind of window evaluation that was initialized in the plan, e.g., interpolation from look-up tables, fast Gaussian gridding, or direct evaluation.
+
+
+
+
+\section{Execute plans}
+\begin{lstlisting}
+void pfft_trafo(pfft_plan plan, pfft_nodes nodes, unsigned compute_flags);
+\end{lstlisting}
+Hereby, \code{compute_flags} can be
+\begin{compactitem}
+  \item \code{PNFFT_COMPUTE_DIRECT}
+  \item \code{PNFFT_COMPUTE_F}
+  \item \code{PNFFT_COMPUTE_GRAD_F}
+  \item \code{PNFFT_COMPUTE_HESSIAN_F}
+  \item \code{PNFFT_OMIT_DECONV}
+  \item \code{PNFFT_OMIT_FFT}
+  \item \code{PNFFT_OMIT_CONV}
+\end{compactitem}
+
+\begin{lstlisting}
+void pfft_adj(pfft_plan plan, pfft_nodes nodes, unsigned compute_flags);
+\end{lstlisting}
+Hereby, \code{compute_flags} can be the same as above but not \code{PNFFT_COMPUTE_HESSIAN_F}.
+\begin{compactitem}
+  \item \code{PNFFT_COMPUTE_ACCUMULATED}
+\end{compactitem}
+
+\section{Finalize plans}
+\begin{lstlisting}
+  void PNX(free_nodes)(
+      PNX(nodes) ths, unsigned pnfft_finalize_flags);
+\end{lstlisting}
+\begin{lstlisting}
+#define PNFFT_FREE_X           ((PNFFT_MALLOC_X))
+#define PNFFT_FREE_F_HAT       ((PNFFT_MALLOC_F_HAT))
+#define PNFFT_FREE_F           ((PNFFT_MALLOC_F))
+#define PNFFT_FREE_GRAD_F      ((PNFFT_MALLOC_GRAD_F))
+#define PNFFT_FREE_HESSIAN_F   ((PNFFT_MALLOC_HESSIAN_F))
+#define PNFFT_FREE_ALL         ((PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_GRAD_F | PNFFT_FREE_HESSIAN_F))
+\end{lstlisting}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

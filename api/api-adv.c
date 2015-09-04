@@ -131,7 +131,6 @@ void PNX(local_size_adv_c2r)(
 
 PNX(plan) PNX(init_adv)(
     int d, const INT *N,
-    INT local_M,
     unsigned pnfft_flags, unsigned pfft_flags,
     MPI_Comm comm_cart
     )
@@ -145,14 +144,13 @@ PNX(plan) PNX(init_adv)(
       n, x_max);
 
   return PNX(init_guru)(
-      d, N, n, x_max, local_M, m,
+      d, N, n, x_max, m,
       pnfft_flags, pfft_flags, comm_cart);
 }
 
 
 PNX(plan) PNX(init_adv_c2r)(
     int d, const INT *N,
-    INT local_M,
     unsigned pnfft_flags, unsigned pfft_flags,
     MPI_Comm comm_cart
     )
@@ -166,7 +164,7 @@ PNX(plan) PNX(init_adv_c2r)(
       n, x_max);
 
   return PNX(init_guru_c2r)(
-      d, N, n, x_max, local_M, m,
+      d, N, n, x_max, m,
       pnfft_flags, pfft_flags, comm_cart);
 }
 
