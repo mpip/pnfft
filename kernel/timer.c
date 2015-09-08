@@ -259,20 +259,22 @@ static void write_run_specific_infos(
 
   if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT)
     PX(fprintf)(comm, file, " | PNFFT_PRE_PHI_HAT");
-  if(ths->pnfft_flags & PNFFT_FG_PSI)
-    PX(fprintf)(comm, file, " | PNFFT_FG_PSI");
+//   if(ths->pnfft_flags & PNFFT_FG_PSI)
+//     PX(fprintf)(comm, file, " | PNFFT_FG_PSI");
+  if(ths->pnfft_flags & PNFFT_FAST_GAUSSIAN)
+    PX(fprintf)(comm, file, " | PNFFT_FAST_GAUSSIAN");
+  if(ths->pnfft_flags & PNFFT_PRE_CONST_PSI)
+    PX(fprintf)(comm, file, " | PNFFT_PRE_CONST_PSI");
   if(ths->pnfft_flags & PNFFT_PRE_LIN_PSI)
     PX(fprintf)(comm, file, " | PNFFT_PRE_LIN_PSI");
   if(ths->pnfft_flags & PNFFT_PRE_QUAD_PSI)
     PX(fprintf)(comm, file, " | PNFFT_PRE_QUAD_PSI");
   if(ths->pnfft_flags & PNFFT_PRE_CUB_PSI)
     PX(fprintf)(comm, file, " | PNFFT_PRE_CUB_PSI");
-  if(ths->pnfft_flags & PNFFT_PRE_FG_PSI)
-    PX(fprintf)(comm, file, " | PNFFT_PRE_FG_PSI");
-  if(ths->pnfft_flags & PNFFT_PRE_PSI)
-    PX(fprintf)(comm, file, " | PNFFT_PRE_PSI");
-  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
-    PX(fprintf)(comm, file, " | PNFFT_PRE_FULL_PSI");
+//   if(ths->pnfft_flags & PNFFT_PRE_PSI)
+//     PX(fprintf)(comm, file, " | PNFFT_PRE_PSI");
+//   if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI)
+//     PX(fprintf)(comm, file, " | PNFFT_PRE_FULL_PSI");
 
   if(ths->pnfft_flags & PNFFT_FFT_IN_PLACE)
     PX(fprintf)(comm, file, " | PNFFT_FFT_IN_PLACE");
@@ -290,29 +292,29 @@ static void write_run_specific_infos(
     PX(fprintf)(comm, file, " | PNFFT_TRANSPOSED_F_HAT");
 
 
-  if(ths->pnfft_flags & PNFFT_DIFF_AD)
-    PX(fprintf)(comm, file, " | PNFFT_DIFF_AD");
   if(ths->pnfft_flags & PNFFT_DIFF_IK)
     PX(fprintf)(comm, file, " | PNFFT_DIFF_IK");
+  else
+    PX(fprintf)(comm, file, " | PNFFT_DIFF_AD");
 
-  if(ths->pnfft_flags & PNFFT_GRAD)
-    PX(fprintf)(comm, file, " | PNFFT_GRAD");
-  if(ths->pnfft_flags & PNFFT_HESSIAN)
-    PX(fprintf)(comm, file, " | PNFFT_HESSIAN");
+//   if(ths->pnfft_flags & PNFFT_GRAD)
+//     PX(fprintf)(comm, file, " | PNFFT_GRAD");
+//   if(ths->pnfft_flags & PNFFT_HESSIAN)
+//     PX(fprintf)(comm, file, " | PNFFT_HESSIAN");
 
   if(ths->pnfft_flags & PNFFT_REAL_F)
     PX(fprintf)(comm, file, " | PNFFT_REAL_F");
 
   if(ths->pnfft_flags & PNFFT_MALLOC_F_HAT)
     PX(fprintf)(comm, file, " | PNFFT_MALLOC_F_HAT");
-  if(ths->pnfft_flags & PNFFT_MALLOC_X)
-    PX(fprintf)(comm, file, " | PNFFT_MALLOC_X");
-  if(ths->pnfft_flags & PNFFT_MALLOC_F)
-    PX(fprintf)(comm, file, " | PNFFT_MALLOC_F");
-  if(ths->pnfft_flags & PNFFT_MALLOC_GRAD_F)
-    PX(fprintf)(comm, file, " | PNFFT_MALLOC_GRAD_F");
-  if(ths->pnfft_flags & PNFFT_MALLOC_HESSIAN_F)
-    PX(fprintf)(comm, file, " | PNFFT_MALLOC_HESSIAN_F");
+//   if(ths->pnfft_flags & PNFFT_MALLOC_X)
+//     PX(fprintf)(comm, file, " | PNFFT_MALLOC_X");
+//   if(ths->pnfft_flags & PNFFT_MALLOC_F)
+//     PX(fprintf)(comm, file, " | PNFFT_MALLOC_F");
+//   if(ths->pnfft_flags & PNFFT_MALLOC_GRAD_F)
+//     PX(fprintf)(comm, file, " | PNFFT_MALLOC_GRAD_F");
+//   if(ths->pnfft_flags & PNFFT_MALLOC_HESSIAN_F)
+//     PX(fprintf)(comm, file, " | PNFFT_MALLOC_HESSIAN_F");
   PX(fprintf)(comm, file, "\n");
 
   PX(fprintf)(comm, file, "index(%d) = %d;  ", idx, idx);

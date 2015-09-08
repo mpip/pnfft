@@ -311,16 +311,16 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_TRANSPOSED_NONE       (0U)
 #define PNFFT_TRANSPOSED_F_HAT      (1U<< 11)
 
+#define PNFFT_DIFF_AD               (0U)
 #define PNFFT_DIFF_IK               (1U<< 12)
-#define PNFFT_DIFF_AD               (1U<< 13)
 
 #define PNFFT_WINDOW_KAISER_BESSEL  (0U)
-#define PNFFT_WINDOW_GAUSSIAN       (1U<< 14)
-#define PNFFT_WINDOW_BSPLINE        (1U<< 15)
-#define PNFFT_WINDOW_SINC_POWER     (1U<< 16)
-#define PNFFT_WINDOW_BESSEL_I0      (1U<< 17)
+#define PNFFT_WINDOW_GAUSSIAN       (1U<< 13)
+#define PNFFT_WINDOW_BSPLINE        (1U<< 14)
+#define PNFFT_WINDOW_SINC_POWER     (1U<< 15)
+#define PNFFT_WINDOW_BESSEL_I0      (1U<< 16)
 
-#define PNFFT_SORT_NODES            (1U<< 18)
+#define PNFFT_SORT_NODES            (1U<< 17)
 
 
 /*************************************/
@@ -345,8 +345,10 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 #define PNFFT_PRE_TENSOR      (0U)
 #define PNFFT_PRE_FULL        (1U<< 0)
 #define PNFFT_PRE_PSI         (1U<< 1)
-#define PNFFT_PRE_GRAD_PSI    (1U<< 2)
-#define PNFFT_PRE_HESSIAN_PSI (1U<< 3)
+/* gradient needs psi and dpsi */
+#define PNFFT_PRE_GRAD_PSI    (( (1U<< 2) | PNFFT_PRE_PSI ))
+/* Hessian needs psi, dpsi and ddpsi */
+#define PNFFT_PRE_HESSIAN_PSI (( (1U<< 3) | PNFFT_PRE_GRAD_PSI )) 
 
 // #define PNFFT_PRE_ONE_PSI    ((PNFFT_PRE_INTPOL_PSI| PNFFT_PRE_FG_PSI| PNFFT_PRE_PSI| PNFFT_PRE_FULL_PSI))
 

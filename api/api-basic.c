@@ -98,78 +98,69 @@ PNX(plan) PNX(init_3d_c2r)(
 
 
 static void trafo_F_and_B_ik_complex_input(
-    PNX(plan) ths, int interlaced
+    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags
     )
 {
   /* duplicate g1 since we have to scale it several times for computing gradient/Hessian*/
-  if( ths->compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) ){
+  if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) ){
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
-    for(INT k=0; k<ths->local_N_total; k++)
-      ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
+    if( !(compute_flags & PNFFT_OMIT_DECONV) )
+      for(INT k=0; k<ths->local_N_total; k++)
+        ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
   }
 
   /* calculate potentials */
-  if( ths->compute_flags & PNFFT_COMPUTE_F){
+  if( compute_flags & PNFFT_COMPUTE_F){
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
-    PNX(trafo_F)(ths);
+    if( !(compute_flags & PNFFT_OMIT_FFT) )
+      PNX(trafo_F)(ths);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
-    if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-      for(INT j=0; j<nodes->local_M; j++)
-        nodes->f[j] = 0;
-    else
-      for(INT j=0; j<nodes->local_M; j++)
-        ((C*)nodes->f)[j] = 0;
-    PNX(trafo_B_strided)(ths, nodes->f, 0, 1, interlaced);
+    if( !(compute_flags & PNFFT_OMIT_CONV) )
+      PNX(trafo_B_strided)(ths, nodes, nodes->f, 0, 1, interlaced);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
 
   /* calculate gradient component wise */
-  if(ths->compute_flags & PNFFT_COMPUTE_GRAD_F){
+  if(compute_flags & PNFFT_COMPUTE_GRAD_F){
     for(int dim =0; dim<3; dim++){
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
-      PNX(scale_ik_diff_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
-          (C*)ths->g1);
+      if( !(compute_flags & PNFFT_OMIT_DECONV) )
+        PNX(scale_ik_diff_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
+            (C*)ths->g1);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
       
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
-      PNX(trafo_F)(ths);
+      if( !(compute_flags & PNFFT_OMIT_FFT) )
+        PNX(trafo_F)(ths);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-        for(INT j=0; j<nodes->local_M; j++)
-          nodes->grad_f[3*j+dim] = 0;
-      else
-        for(INT j=0; j<nodes->local_M; j++)
-          ((C*)nodes->grad_f)[3*j+dim] = 0;
-      PNX(trafo_B_strided)(ths, nodes->grad_f, dim, 3, interlaced);
+      if( !(compute_flags & PNFFT_OMIT_CONV) )
+        PNX(trafo_B_strided)(ths, nodes, nodes->grad_f, dim, 3, interlaced);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     }
   }
 
   /* calculate Hessian component wise */
-  if(ths->compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+  if(compute_flags & PNFFT_COMPUTE_HESSIAN_F){
     for(int dim =0; dim<6; dim++){
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
-      PNX(scale_ik_diff2_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
-          (C*)ths->g1);
+      if( !(compute_flags & PNFFT_OMIT_DECONV) )
+        PNX(scale_ik_diff2_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
+            (C*)ths->g1);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
       
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
-      PNX(trafo_F)(ths);
+      if( !(compute_flags & PNFFT_OMIT_FFT) )
+        PNX(trafo_F)(ths);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
-        for(INT j=0; j<nodes->local_M; j++)
-          nodes->hessian_f[6*j+dim] = 0;
-      else
-        for(INT j=0; j<nodes->local_M; j++)
-          ((C*)nodes->hessian_f)[6*j+dim] = 0;
-      PNX(trafo_B_strided)(ths, nodes->hessian_f, dim, 6, interlaced);
+      if( !(compute_flags & PNFFT_OMIT_CONV) )
+        PNX(trafo_B_strided)(ths, nodes, nodes->hessian_f, dim, 6, interlaced);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     }
   }
@@ -182,20 +173,24 @@ static void trafo(
 {
   /* multiplication with matrix D */
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
-  PNX(trafo_D)(ths, nodes, interlaced);
+  if( !(compute_flags & PNFFT_OMIT_DECONV) )
+    PNX(trafo_D)(ths, interlaced);
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
  
-  if( ths->pnfft_flags & PNFFT_DIFF_IK )
-    trafo_F_and_B_ik_complex_input(ths, nodes, interlaced);
-  else {
+  if( ths->pnfft_flags & PNFFT_DIFF_IK ){
+    /* multiplication with matrix F and B for ik-differentiation */
+    trafo_F_and_B_ik_complex_input(ths, nodes, interlaced, compute_flags);
+  } else {
     /* multiplication with matrix F */
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
-    PNX(trafo_F)(ths);
+    if( !(compute_flags & PNFFT_OMIT_FFT) )
+      PNX(trafo_F)(ths);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
 
     /* multiplication with matrix B */
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
-    PNX(trafo_B_ad)(ths, nodes, interlaced, compute_flags);
+    if( !(compute_flags & PNFFT_OMIT_CONV) )
+      PNX(trafo_B_ad)(ths, nodes, interlaced, compute_flags);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
 }
@@ -205,7 +200,7 @@ void PNX(trafo)(
     PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags
     )
 {
-  int interlaced;
+  int use_interlacing, interlaced;
 
   if(ths==NULL){
     PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
@@ -224,109 +219,111 @@ void PNX(trafo)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 
-  /* compute non-interlaced NFFT */
-  trafo(ths, nodes, interlaced=0, compute_flags);
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+  if( !(compute_flags & PNFFT_COMPUTE_ACCUMULATED) ){
+    INT tuple = (ths->trafo_flag & PNFFTI_TRAFO_C2R) ? 1 : 2;
 
-  /* compute interlaced NFFT and average the results */
-  if(ths->pnfft_flags & PNFFT_INTERLACED){
-    R *buffer_f_r=NULL,    *buffer_grad_f_r=NULL,         *buffer_hessian_f_r=NULL;
-    C *buffer_f_c=NULL,    *buffer_grad_f_c=NULL,         *buffer_hessian_f_c=NULL;
-    R *f_r = nodes->f,     *grad_f_r = nodes->grad_f,     *hessian_f_r = nodes->hessian_f;
-    C *f_c = (C*)nodes->f, *grad_f_c = (C*)nodes->grad_f, *hessian_f_c = (C*)nodes->hessian_f;
-
-    if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
-      if(compute_flags & PNFFT_COMPUTE_F){
-        buffer_f_r = nodes->local_M ? PNX(malloc_R)(nodes->local_M) : NULL;
-        for(INT j=0; j<nodes->local_M; j++)
-          buffer_f_r[j] = f_r[j];
-      }
-      if(compute_flags & PNFFT_COMPUTE_GRAD_F){
-        buffer_grad_f_r = nodes->local_M ? PNX(malloc_R)(ths->d*nodes->local_M) : NULL;
-        for(INT j=0; j<ths->d*nodes->local_M; j++)
-          buffer_grad_f_r[j] = grad_f_r[j];
-      }
-      if(compute_flags & PNFFT_COMPUTE_HESSIAN_F){
-        buffer_hessian_f_r = nodes->local_M ? PNX(malloc_R)(6*nodes->local_M) : NULL;
-        for(INT j=0; j<6*nodes->local_M; j++)
-          buffer_hessian_f_r[j] = hessian_f_r[j];
-      }
-    } else {
-      if(compute_flags & PNFFT_COMPUTE_F){
-        buffer_f_c = nodes->local_M ? PNX(malloc_C)(nodes->local_M) : NULL;
-        for(INT j=0; j<nodes->local_M; j++)
-          buffer_f_c[j] = f_c[j];
-      }
-      if(compute_flags & PNFFT_COMPUTE_GRAD_F){
-        buffer_grad_f_c = nodes->local_M ? PNX(malloc_C)(ths->d*nodes->local_M) : NULL;
-        for(INT j=0; j<ths->d*nodes->local_M; j++)
-          buffer_grad_f_c[j] = grad_f_c[j];
-      }
-      if(nodes_hessian_f != NULL){
-        buffer_hessian_f_c = nodes->local_M ? PNX(malloc_C)(6*nodes->local_M) : NULL;
-        for(INT j=0; j<6*nodes->local_M; j++)
-          buffer_hessian_f_c[j] = hessian_f_c[j];
-      }
-    }
-
-    trafo(ths, nodes, interlaced=1, compute_flags);
-
-    if(compute_flags & PNFFT_COMPUTE_F) {
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
-        for(INT j=0; j<nodes->local_M; j++)
-          f_r[j] = 0.5 * (f_r[j] + buffer_f_r[j]);
-      } else {
-        for(INT j=0; j<nodes->local_M; j++)
-          f_c[j] = 0.5 * (f_c[j] + buffer_f_c[j]);
-      }
-    }
-    if(compute_flags & PNFFT_COMPUTE_GRAD_F) {
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
-        for(INT j=0; j<ths->d*nodes->local_M; j++)
-          grad_f_r[j] = 0.5 * (grad_f_r[j] + buffer_grad_f_r[j]);
-      } else {
-        for(INT j=0; j<ths->d*nodes->local_M; j++)
-          grad_f_c[j] = 0.5 * (grad_f_c[j] + buffer_grad_f_c[j]);
-      }
-    }
-    if(compute_flags & PNFFT_COMPUTE_HESSIAN_F) {
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R){
-        for(INT j=0; j<6*nodes->local_M; j++)
-          hessian_f_r[j] = 0.5 * (hessian_f_r[j] + buffer_hessian_f_r[j]);
-      } else {
-        for(INT j=0; j<6*nodes->local_M; j++)
-          hessian_f_c[j] = 0.5 * (hessian_f_c[j] + buffer_hessian_f_c[j]);
-      }
-    }
-
-    if(buffer_f_r != NULL) PNX(free)(buffer_f_r);
-    if(buffer_f_c != NULL) PNX(free)(buffer_f_c);
-    if(buffer_grad_f_r != NULL) PNX(free)(buffer_grad_f_r);
-    if(buffer_grad_f_c != NULL) PNX(free)(buffer_grad_f_c);
-    if(buffer_hessian_f_r != NULL) PNX(free)(buffer_hessian_f_r);
-    if(buffer_hessian_f_c != NULL) PNX(free)(buffer_hessian_f_c);
+    if(compute_flags & PNFFT_COMPUTE_F)
+      for(INT m=0; m<tuple*nodes->local_M; m++)
+        nodes->f[m] = 0;
+    if(compute_flags & PNFFT_COMPUTE_GRAD_F)
+      for(INT m=0; m<3*tuple*nodes->local_M; m++)
+        nodes->grad_f[m] = 0;
+    if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
+      for(INT m=0; m<6*tuple*nodes->local_M; m++)
+        nodes->_hessian_f[m] = 0;
   }
+  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+
+  if(ths->pnfft_flags & PNFFT_INTERLACED){
+    /* compute interlaced NFFT and average the results */
+    trafo(ths, nodes, use_interlacing=1, interlaced=0, compute_flags);
+    trafo(ths, nodes, use_interlacing=1, interlaced=1, compute_flags);
+  } else {
+    /* compute non-interlaced NFFT */
+    trafo(ths, nodes, use_interlacing=0, interlaced=0, compute_flags);
+  }     
  
   ths->timer_trafo[PNFFT_TIMER_ITER]++;
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 }
 
-static void adj(
-    PNX(plan) ths, int interlaced, unsigned compute_flags
+static void adjoint_B_and_F_ik_complex_input(
+    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags
     )
 {
-  /* multiplication with matrix B^T */
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
-  PNX(adjoint_B)(ths, interlaced, compute_flags);
-  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
+  /* duplicate g1 since we have to scale it several times for computing gradient/Hessian*/
+  if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) ){
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
+    if( !(compute_flags & PNFFT_OMIT_DECONV) )
+      for(INT k=0; k<ths->local_N_total; k++)
+        ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
+  }
 
-  /* multiplication with matrix F^H */
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
-  PNX(adjoint_F)(ths);
-  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
+  /* spread potentials */
+  if( compute_flags & PNFFT_COMPUTE_F){
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+    if( !(compute_flags & PNFFT_OMIT_CONV) ){
+      PNX(adjoint_B_strided)(ths, nodes, nodes->f, 0, 1, interlaced);
+    }
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+    if( !(compute_flags & PNFFT_OMIT_FFT) )
+      PNX(trafo_F)(ths);
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+
+  }
+
+  /* spread gradient component wise */
+  if(compute_flags & PNFFT_COMPUTE_GRAD_F){
+    for(int dim =0; dim<3; dim++){
+      PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
+      if( !(compute_flags & PNFFT_OMIT_DECONV) )
+        PNX(scale_ik_diff_c2c)((C*)ths->g1_buffer, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
+            (C*)ths->g1);
+      PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_D]);
+      
+      PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+      if( !(compute_flags & PNFFT_OMIT_FFT) )
+        PNX(trafo_F)(ths);
+      PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_F]);
+
+      PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+      if( !(compute_flags & PNFFT_OMIT_CONV) ){
+        PNX(trafo_B_strided)(ths, nodes, nodes->grad_f, dim, 3, interlaced);
+      }
+      PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+    }
+  }
+}
+
+static void adj(
+    PNX(plan) ths, PNX(nodes), int interlaced, unsigned compute_flags
+    )
+{
+  if( ths->pnfft_flags & PNFFT_DIFF_IK )
+    /* multiplication with matrix B^T and F^H for ik-differentiation */
+    adjoint_B_and_F_ik_complex_input(ths, nodes, interlaced, compute_flags);
+  } else {
+    /* multiplication with matrix B^T */
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
+    if( !(compute_flags & PNFFT_OMIT_CONV) )
+      PNX(adjoint_B_ad)(ths, nodes, interlaced, compute_flags);
+    PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
+
+    /* multiplication with matrix F^H */
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
+    if( !(compute_flags & PNFFT_OMIT_FFT) )
+      PNX(adjoint_F)(ths);
+    PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
+  }
 
   /* multiplication with matrix D */
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
-  PNX(adjoint_D)(ths, interlaced);
+  if( !(compute_flags & PNFFT_OMIT_DECONV) )
+    PNX(adjoint_D)(ths, interlaced);
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 }
 
@@ -334,6 +331,8 @@ void PNX(adj)(
     PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags
     )
 {
+  int use_interlacing, interlaced;
+
   if(ths==NULL){
     PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
     return;
@@ -351,25 +350,43 @@ void PNX(adj)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
-  /* compute non-interlaced NFFT */
-  adj(ths, 0, compute_flags);
+  if( !(compute_flags & PNFFT_COMPUTE_ACCUMULATED) )
+    for(INT m=0; m<ths->local_N_total; m++)
+      ths->f_hat[m] = 0;
 
-  /* compute interlaced NFFT and average the results */
   if(ths->pnfft_flags & PNFFT_INTERLACED){
-    C* buffer_f_hat = ths->local_N_total ? PNX(malloc_C)(ths->local_N_total) : NULL;
-
-    for(INT m=0; m<ths->local_N_total; m++)
-      buffer_f_hat[m] = ths->f_hat[m];
-
-    adj(ths, 1, compute_flags);
-
-    for(INT m=0; m<ths->local_N_total; m++)
-      ths->f_hat[m] = 0.5 * (ths->f_hat[m] + buffer_f_hat[m]);
-    if(buffer_f_hat != NULL) PNX(free)(buffer_f_hat);
+    /* compute interlaced NFFT and average the results */
+    adj(ths, use_interlacing=1, interlaced=1, compute_flags);
+    adj(ths, use_interlacing=1, interlaced=0, compute_flags);
+  } else {
+    /* compute non-interlaced NFFT */
+    adj(ths, 0, compute_flags);
   }
 
   ths->timer_adj[PNFFT_TIMER_ITER]++;
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
+}
+
+static PNX(nodes) mknodes(
+    void
+    )
+{
+  PNX(nodes) nodes = (nodes_s*) malloc(sizeof(nodes_s));
+
+  nodes->local_M   = 0;
+  nodes->f         = NULL;
+  nodes->grad_f    = NULL;
+  nodes->hessian_f = NULL;
+  nodes->x         = NULL;
+
+  nodes->pre_psi      = NULL;
+  nodes->pre_dpsi     = NULL;
+  nodes->pre_ddpsi    = NULL;
+  nodes->pre_psi_il   = NULL;
+  nodes->pre_dpsi_il  = NULL;
+  nodes->pre_ddpsi_il = NULL;
+
+  return nodes;
 }
 
 PNX(nodes) PNX(init_nodes)(

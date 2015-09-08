@@ -38,19 +38,13 @@
 static void loop_over_particles_trafo(
     PNX(plan) ths, PNX(nodes) nodes,
     INT *local_no_start, INT *local_ngc, INT *gcells_below,
-    int interlaced, unsigned compute_flags,
+    int use_interlacing, int interlaced, unsigned compute_flags,
     INT *sorted_index);
 static void loop_over_particles_adj(
     PNX(plan) ths, PNX(nodes) nodes,
     INT *local_no_start, INT *local_ngc, INT *gcells_below,
-    int interlaced,
+    int use_interlacing, int interlaced, unsigned compute_flags,
     INT *sorted_index);
-// static void loop_over_particles_adj_interlaced_0(
-//     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-//     INT *sorted_index);
-// static void loop_over_particles_adj_interlaced_1(
-//     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-//     INT *sorted_index);
 
 static int is_hermitian(
   INT k0, INT k1, INT k2,
@@ -236,8 +230,8 @@ static R ddpsi_kaiser(
     R x, INT n, R b, int m);
 
 static void precompute_psi(
-    PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi, R* buffer_ddpsi, 
-    int compute_grad_ad, int compute_hessian_ad,
+    PNX(plan) ths, INT ind, R* x, R* buffer_psi, R* buffer_dpsi, R* buffer_ddpsi,
+    unsigned precompute_flags,
     R* pre_psi, R* pre_dpsi, R* pre_ddpsi);
 
 /* TODO: This function calculates the number of minimum samples of the 2-point-Taylor regularized
@@ -868,16 +862,6 @@ PNX(plan) PNX(init_internal)(
 
   /* TODO: apply some parameter checks */
 
-  if(pnfft_flags & PNFFT_PRE_PSI && pnfft_flags & PNFFT_PRE_FULL_PSI){
-    PX(printf)(comm_cart, "!!! Warning: PRE_PSI and PRE_FULL_PSI can not be used together. Using PRE_PSI for this plan !!!\n");
-    pnfft_flags &= (~PNFFT_PRE_FULL_PSI); /* needed for correct pnfft_finalize */
-  }
-
-  /* Test Faddeeva function: */
-//   R x=0.5, y=0.1;
-//   cmplx w = w_of_z( x + I*y);
-//   fprintf(stderr, "w(x+y*I) = %e + %e * I, x = %e, y = %e\n", creal(w), cimag(w), x, y);
-
   ths = mkplan();
 
   ths->d = d;
@@ -1068,7 +1052,7 @@ void PNX(init_precompute_window)(
     PNX(plan) ths
     )
 {
-  if(ths->pnfft_flags & PNFFT_FG_PSI){
+  if(ths->pnfft_flags & PNFFT_FAST_GAUSSIAN){
     if(ths->exp_const == NULL)
       ths->exp_const = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->d * ths->cutoff);
     for(int t=0; t<ths->d; t++)
@@ -1097,7 +1081,7 @@ void PNX(init_precompute_window)(
           ths->intpol_tables_psi[t]);
     }
 
-    if( ths->pnfft_flags & PNFFT_DIFF_AD ){
+    if( !(ths->pnfft_flags & PNFFT_DIFF_IK) ){
       if(ths->intpol_tables_dpsi == NULL)
         ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
       for(int t=0; t<ths->d; t++){
@@ -1164,12 +1148,14 @@ void PNX(precompute_psi)(
   if(nodes->pre_ddpsi_il != NULL)
     PNX(free)(nodes->pre_ddpsi_il);
 
-  if( !use_psi && !use_dpsi && !use_ddpsi )
+  nodes->precompute_flags = precompute_flags;
+
+  if( !(precompute_flags & PNFFT_PRE_PSI) )
     return;
 
   /* allocate memory */
   INT size_psi, size_dpsi, size_ddpsi;
-  if(ths->pnfft_flags & PNFFT_PRE_FULL_PSI){
+  if(ths->pnfft_flags & PNFFT_PRE_FULL){
     size_psi   = PNFFT_POW3(ths->cutoff) * nodes->local_M;
     size_dpsi  = PNFFT_POW3(ths->cutoff) * nodes->local_M * 3;
     size_ddpsi = PNFFT_POW3(ths->cutoff) * nodes->local_M * 6;
@@ -1179,37 +1165,36 @@ void PNX(precompute_psi)(
     size_ddpsi = 3 * ths->cutoff * nodes->local_M;
   }
 
-  if(use_func || use_grad || use_hess ){ /* gradient needs psi and dpsi */
-    nodes->pre_psi = (size) ? (R*) PNX(malloc)(sizeof(R) * size_psi) : NULL;
-    if(ths->pnfft_flags & PNFFT_INTERLACED)
-      nodes->pre_psi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size_psi) : NULL;
+  if( precompute_flags & PNFFT_PRE_PSI ){
+    nodes->pre_psi = (size_psi) ? (R*) PNX(malloc)(sizeof(R) * size_psi) : NULL;
+    if( ths->pnfft_flags & PNFFT_INTERLACED )
+      nodes->pre_psi_il = (size_psi) ? (R*) PNX(malloc)(sizeof(R) * size_psi) : NULL;
   }
-  if( use_grad || use_hess ){ /* Hessian needs dpsi and ddpsi */ 
-      nodes->pre_dpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size_dpsi) : NULL;
-      if(ths->pnfft_flags & PNFFT_INTERLACED)
-        nodes->pre_dpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size_dpsi) : NULL;
-    }
+  if( precompute_flags & PNFFT_PRE_GRAD_PSI ){
+    nodes->pre_dpsi = (size_dpsi) ? (R*) PNX(malloc)(sizeof(R) * size_dpsi) : NULL;
+    if( ths->pnfft_flags & PNFFT_INTERLACED )
+      nodes->pre_dpsi_il = (size_dpsi) ? (R*) PNX(malloc)(sizeof(R) * size_dpsi) : NULL;
   }
-  if( use_hess ){
-    nodes->pre_ddpsi = (size) ? (R*) PNX(malloc)(sizeof(R) * size_ddpsi) : NULL;
-    if(ths->pnfft_flags & PNFFT_INTERLACED)
-      nodes->pre_ddpsi_il = (size) ? (R*) PNX(malloc)(sizeof(R) * size_ddpsi) : NULL;
+  if( precompute_flags & PNFFT_PRE_HESSIAN_PSI ){
+    nodes->pre_ddpsi = (size_ddpsi) ? (R*) PNX(malloc)(sizeof(R) * size_ddpsi) : NULL;
+    if( ths->pnfft_flags & PNFFT_INTERLACED )
+      nodes->pre_ddpsi_il = (size_ddpsi) ? (R*) PNX(malloc)(sizeof(R) * size_ddpsi) : NULL;
   }
 
   /* save precomputations in the same order as needed in matrix B */
-  if(ths->pnfft_flags & PNFFT_SORT_NODES){
+  if( ths->pnfft_flags & PNFFT_SORT_NODES ){
     sorted_index = (INT*) PNX(malloc)(sizeof(INT) * (size_t) 2*nodes->local_M);
     sort_nodes_for_better_cache_handle(
         ths->d, ths->n, ths->m, nodes->local_M, nodes->x,
         sorted_index);
   }
 
-  if(ths->pnfft_flags & PNFFT_PRE_FULL){
-    if( use_func || use_grad || use_hess )
+  if( precompute_flags & PNFFT_PRE_FULL ){
+    if( precompute_flags & PNFFT_PRE_PSI )
       buffer_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
-    if( use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_GRAD_PSI )
       buffer_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
-    if( use_hess )
+    if( precompute_flags & PNFFT_PRE_HESSIAN_PSI )
       buffer_ddpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) ths->cutoff*3);
   }
 
@@ -1218,7 +1203,7 @@ void PNX(precompute_psi)(
 
     for(int t=0; t<3; t++)
       x[t] = nodes->x[ths->d*j+t];
-    precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, use_grad, use_hess,
+    precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, precompute_flags,
         nodes->pre_psi, nodes->pre_dpsi, nodes->pre_ddpsi);
 
     if(ths->pnfft_flags & PNFFT_INTERLACED){
@@ -1228,7 +1213,7 @@ void PNX(precompute_psi)(
         if(x[t] >= 0.5)
           x[t] -= 1.0;
       }
-      precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, use_grad, use_hess,
+      precompute_psi(ths, p, x, buffer_psi, buffer_dpsi, buffer_ddpsi, precompute_flags,
           nodes->pre_psi_il, nodes->pre_dpsi_il, nodes->pre_ddpsi_il);
     }
   }
@@ -1254,20 +1239,13 @@ static void precompute_psi(
   for(int t=0; t<3; t++)
     floor_nx[t] = pnfft_floor(ths->n[t]*x[t]);
 
-  int use_func = 0, use_grad = 0, use_hess = 0;
-  use_func = precompute_flags & PNFFT_PRE_PSI;
-  if(ths->pnfft_flags & PNFFT_DIFF_AD){
-    use_grad = precompute_flags & PNFFT_PRE_GRAD_PSI;
-    use_hess = precompute_flags & PNFFT_PRE_HESSIAN_PSI;
-  }
-
   if(precompute_flags & PNFFT_PRE_FULL){
     /* shift index to current particle */
-    if( use_func || use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_PSI )
       pre_psi += ind * PNFFT_POW3(cutoff);
-    if( use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_GRAD_PSI )
       pre_dpsi += 3 * ind * PNFFT_POW3(cutoff);
-    if( use_hess )
+    if( precompute_flags & PNFFT_PRE_HESSIAN_PSI )
       pre_ddpsi += 3 * ind * PNFFT_POW3(cutoff);
 
     pre_psi_tensor(
@@ -1276,7 +1254,7 @@ static void precompute_psi(
         ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
         buffer_psi);
 
-    if( use_func || use_grad || use_hess ){
+    if( precompute_flags & PNFFT_PRE_PSI ){
       INT m=0;
       for(INT l0=0; l0<cutoff; l0++){
         for(INT l1=cutoff; l1<2*cutoff; l1++){
@@ -1288,7 +1266,7 @@ static void precompute_psi(
       }
     }
 
-    if( use_grad || use_hess ){
+    if( precompute_flags & PNFFT_PRE_GRAD_PSI ){
       pre_dpsi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
@@ -1310,7 +1288,7 @@ static void precompute_psi(
       }
     }
 
-    if( use_hess ){
+    if( precompute_flags & PNFFT_PRE_HESSIAN_PSI ){
       pre_ddpsi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
@@ -1339,28 +1317,28 @@ static void precompute_psi(
     }
   } else {
     /* shift index to current particle */
-    if( use_func || use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_PSI )
       pre_psi += ind * 3 * cutoff;
-    if( use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_GRAD_PSI )
       pre_dpsi += ind * 3 * cutoff;
-    if( use_hess )
+    if( precompute_flags & PNFFT_PRE_HESSIAN_PSI )
       pre_ddpsi += ind * 3 * cutoff;
 
-    if( use_func || use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_PSI )
       pre_psi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
           pre_psi);
 
-    if( use_grad || use_hess )
+    if( precompute_flags & PNFFT_PRE_GRAD_PSI )
       pre_dpsi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
           pre_psi, ths->pnfft_flags,
           pre_dpsi);
 
-    if( use_hess )
+    if( precompute_flags & PNFFT_PRE_HESSIAN_PSI )
       pre_ddpsi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx, ths->spline_coeffs,
           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
@@ -1370,27 +1348,6 @@ static void precompute_psi(
 }
 
 
-static PNX(nodes) mknodes(
-    void
-    )
-{
-  PNX(nodes) nodes = (nodes_s*) malloc(sizeof(nodes_s));
-
-  nodes->local_M   = 0;
-  nodes->f         = NULL;
-  nodes->grad_f    = NULL;
-  nodes->hessian_f = NULL;
-  nodes->x         = NULL;
-
-  nodes->pre_psi      = NULL;
-  nodes->pre_dpsi     = NULL;
-  nodes->pre_ddpsi    = NULL;
-  nodes->pre_psi_il   = NULL;
-  nodes->pre_dpsi_il  = NULL;
-  nodes->pre_ddpsi_il = NULL;
-
-  return nodes;
-}
 
 static PNX(plan) mkplan(
     void
@@ -2497,7 +2454,8 @@ static int compare_INT(
 
 
 void PNX(trafo_B_strided)(
-    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride, int interlaced
+    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
+    int use_interlacing, int interlaced
     )
 {
   const int cutoff = ths->cutoff;
@@ -2538,7 +2496,7 @@ void PNX(trafo_B_strided)(
   }
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
-  if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
+  if( !(ths->pnfft_flags & (PNFFT_PRE_TENSOR | PNFFT_PRE_FULL)) )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   for(INT p=0; p<nodes->local_M; p++){
     j = (ths->pnfft_flags & PNFFT_SORT_NODES) ? sorted_index[2*p+1] : p;
@@ -2567,7 +2525,7 @@ void PNX(trafo_B_strided)(
     }
 
     /* evaluate window on axes */
-    if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
+    if( !(ths->pnfft_flags & PNFFT_PRE_PSI) )
       pre_psi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
@@ -2579,15 +2537,18 @@ void PNX(trafo_B_strided)(
     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
     if(ths->pnfft_flags & PNFFT_REAL_F)
       PNX(assign_f_r2r)(
-          ths, p, ths->g2, pre_psi, 2*m0, local_ngc, cutoff, 2, interlaced,
+          ths, nodes, p, ths->g2, pre_psi, 2*m0, local_ngc, cutoff, 2,
+          use_interlacing, interlaced,
           f + 2*ind);
     else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
       PNX(assign_f_r2r)(
-          ths, p, ths->g2, pre_psi, m0, local_ngc, cutoff, 1, interlaced,
+          ths, nodes, p, ths->g2, pre_psi, m0, local_ngc, cutoff, 1,
+          use_interlacing, interlaced,
           f + ind);
     else
       PNX(assign_f_c2c)(
-          ths, p, (C*)ths->g2, pre_psi, m0, local_ngc, cutoff, interlaced,
+          ths, nodes, p, (C*)ths->g2, pre_psi, m0, local_ngc, cutoff,
+          use_interlacing, interlaced,
           (C*)f + ind);
   }
 
@@ -2606,7 +2567,8 @@ void PNX(trafo_B_strided)(
 
 
 void PNX(trafo_B_ad)(
-    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags
+    PNX(plan) ths, PNX(nodes) nodes,
+    int use_interlacing, int interlaced, unsigned compute_flags
     )
 {
   INT *sorted_index = NULL;
@@ -2671,7 +2633,8 @@ void PNX(trafo_B_ad)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
   loop_over_particles_trafo(
-      ths, nodes, local_no_start, local_ngc, gcells_below, interlaced, compute_flags, sorted_index);
+      ths, nodes, local_no_start, local_ngc, gcells_below,
+      use_interlacing, interlaced, compute_flags, sorted_index);
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
 
 #if PNFFT_ENABLE_DEBUG
@@ -2691,10 +2654,9 @@ void PNX(trafo_B_ad)(
 }
 
 
-
-
-void PNX(adjoint_B)(
-    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags
+void PNX(adjoint_B_strided)(
+    PNX(plan) ths, PNX(nodes) nodes,
+    int use_interlacing, int interlaced, unsigned compute_flags
     )
 {
   INT *sorted_index = NULL;
@@ -2744,16 +2706,103 @@ void PNX(adjoint_B)(
   
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_LOOP_B]);
   loop_over_particles_adj(
-      ths, nodes, local_no_start, local_ngc, gcells_below, interlaced, sorted_index);
+      ths, nodes, local_no_start, local_ngc, gcells_below,
+      use_interlacing, interlaced, compute_flags, sorted_index);
   /* TODO: - try to optimize for real values inputs
    *       - combine two r2c FFTs in one c2c FFT
    *       - problem: with parallel domain decomposition its hard to use Hermitian symmetry in order to restore the two separate FFT outputs */
-//   if(interlaced){
-//     loop_over_particles_adj_interlaced_0(
-//         ths, local_no_start, local_ngc, gcells_below, sorted_index);
-//     loop_over_particles_adj_interlaced_1(
-//         ths, local_no_start, local_ngc, gcells_below, sorted_index);
-//   }
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_LOOP_B]);
+
+#if PNFFT_ENABLE_DEBUG
+  PNX(debug_sum_print)(ths->g2, local_ngc_total,
+      !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
+      "PNFFT^H: Sum of Fourier coefficients before ghostcell reduce");
+#endif  
+
+  /* reduce ghost cells in ring */
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_GCELLS]);
+  PX(reduce)(ths->gcplan);
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_GCELLS]);
+
+#if PNFFT_ENABLE_DEBUG
+  PNX(debug_sum_print)(ths->g2, local_no[0]*local_no[1]*local_no[2],
+      !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
+      "PNFFT^H: Sum of Fourier coefficients after ghostcell reduce");
+#endif
+
+  /* perform fftshift */
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_SHIFT_INPUT]);
+//   if(ths->pnfft_flags & PNFFT_SHIFTED_IN)
+  PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_SHIFT_INPUT]);
+
+#if PNFFT_ENABLE_DEBUG
+  PNX(debug_sum_print)(ths->g2, local_no[0]*local_no[1]*local_no[2],
+      !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
+      "PNFFT^H: Sum of Fourier coefficients after twiddles");
+#endif
+  
+  if(sorted_index != NULL)
+    PNX(free)(sorted_index);
+}
+
+
+void PNX(adjoint_B_ad)(
+    PNX(plan) ths, PNX(nodes) nodes,
+    int use_interlacing, int interlaced, unsigned compute_flags
+    )
+{
+  INT *sorted_index = NULL;
+  INT local_no[3], local_no_start[3];
+  INT gcells_below[3], gcells_above[3];
+  INT local_ngc[3], local_ngc_total;
+
+  local_size_B(ths,
+      local_no, local_no_start);
+
+  get_size_gcells(ths->m, ths->cutoff, ths->pnfft_flags,
+      gcells_below, gcells_above);
+  local_array_size(local_no, gcells_below, gcells_above,
+      local_ngc);
+
+  local_ngc_total = PNX(prod_INT)(3, local_ngc);
+  if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
+    for(INT k=0; k<local_ngc_total; k++)
+      ths->g2[k] = 0;
+  else
+    for(INT k=0; k<local_ngc_total; k++)
+      ((C*)ths->g2)[k] = 0;
+
+#if PNFFT_ENABLE_DEBUG
+  PNX(debug_sum_print)(nodes->x, 3*nodes->local_M, 0,
+      "PNFFT^H: Sum of x before sort");
+#endif
+
+  /* sort indices for better cache handling */
+  if(ths->pnfft_flags & PNFFT_SORT_NODES){
+    PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_SORT_NODES]);
+    sorted_index = (INT*) PNX(malloc)(sizeof(INT) * (size_t) 2*nodes->local_M);
+    sort_nodes_for_better_cache_handle(
+        ths->d, ths->n, ths->m, nodes->local_M, nodes->x,
+        sorted_index);
+    PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_SORT_NODES]);
+  }
+  
+#if PNFFT_ENABLE_DEBUG
+  PNX(debug_sum_print)(nodes->x, 3*nodes->local_M, 0,
+      "PNFFT^H: Sum of x after sort");
+  
+  PNX(debug_sum_print)(ths->f, nodes->local_M,
+      !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
+      "PNFFT^H: Sum of f");
+#endif
+  
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_LOOP_B]);
+  loop_over_particles_adj(
+      ths, nodes, local_no_start, local_ngc, gcells_below,
+      use_interlacing, interlaced, compute_flags, sorted_index);
+  /* TODO: - try to optimize for real values inputs
+   *       - combine two r2c FFTs in one c2c FFT
+   *       - problem: with parallel domain decomposition its hard to use Hermitian symmetry in order to restore the two separate FFT outputs */
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_LOOP_B]);
 
 #if PNFFT_ENABLE_DEBUG
@@ -2791,7 +2840,7 @@ void PNX(adjoint_B)(
 static void loop_over_particles_trafo(
     PNX(plan) ths, PNX(nodes) nodes,
     INT *local_no_start, INT *local_ngc, INT *gcells_below,
-    int interlaced, unsigned compute_flags,
+    int use_interlacing, int interlaced, unsigned compute_flags,
     INT *sorted_index
     )
 {
@@ -2804,13 +2853,15 @@ static void loop_over_particles_trafo(
   R rsum=0.0, rsum_derive=0.0, grsum, grsum_derive;
 #endif
 
-  if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
+  if( !(ths->pnfft_flags & PNFFT_PRE_PSI) )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-    if(compute_flags & PNFFT_COMPUTE_GRAD_F || compute_flags & PNFFT_COMPUTE_HESSIAN_F)
+  if( !(ths->pnfft_flags & PNFFT_PRE_GRAD_PSI) )
+    if(compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F))
       pre_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
+  if( !(ths->pnfft_flags & PNFFT_PRE_HESSIAN_PSI) )
     if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
       pre_ddpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-  }
+  
   for(INT p=0; p<nodes->local_M; p++){
     j = (ths->pnfft_flags & PNFFT_SORT_NODES) ? sorted_index[2*p+1] : p;
     
@@ -2838,7 +2889,7 @@ static void loop_over_particles_trafo(
     }
 
     /* evaluate window on axes */
-    if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
+    if( !(ths->pnfft_flags & PNFFT_PRE_PSI) ){
       pre_psi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
@@ -2850,8 +2901,10 @@ static void loop_over_particles_trafo(
       for(int t=0; t<3*cutoff; t++)
         rsum += pnfft_fabs(pre_psi[t]);
 #endif
+    }
  
-      if(compute_flags & PNFFT_COMPUTE_GRAD_F || compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+    if( !(ths->pnfft_flags & PNFFT_PRE_GRAD_PSI) ){
+      if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) )
         pre_dpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
             ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
@@ -2864,86 +2917,85 @@ static void loop_over_particles_trafo(
           for(int t=0; t<3*cutoff; t++)
             rsum_derive += pnfft_fabs(pre_dpsi[t]);
 #endif
-      }
+    }
 
-      if(compute_flags & PNFFT_COMPUTE_HESSIAN_F){
+    if( !(ths->pnfft_flags & PNFFT_PRE_HESSIAN_PSI) )
+      if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
         pre_ddpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
             ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
             pre_psi, pre_dpsi, ths->pnfft_flags,
             pre_ddpsi);
-      }
-    }
 
     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
     if(compute_flags & PNFFT_COMPUTE_F && compute_flags & PNFFT_COMPUTE_GRAD_F){
       /* compute f and grad_f at once */
       if(ths->pnfft_flags & PNFFT_REAL_F)
         PNX(assign_f_and_grad_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi,
-            2*m0, local_ngc, cutoff, 2, 2, interlaced,
+            ths, nodes, p, ths->g2, pre_psi, pre_dpsi,
+            2*m0, local_ngc, cutoff, 2, 2, use_interlacing, interlaced,
             nodes->f + 2*j, nodes->grad_f + 2*3*j);
       else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_f_and_grad_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi,
-            m0, local_ngc, cutoff, 1, 1, interlaced,
+            ths, nodes, p, ths->g2, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, 1, 1, use_interlacing, interlaced,
             nodes->f + j, nodes->grad_f + 3*j);
       else
         PNX(assign_f_and_grad_f_c2c)(
-            ths, p, (C*)ths->g2, pre_psi, pre_dpsi,
-            m0, local_ngc, cutoff, interlaced,
+            ths, nodes, p, (C*)ths->g2, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, use_interlacing, interlaced,
             (C*)nodes->f + j, (C*)nodes->grad_f + 3*j);
     } else if(compute_flags & PNFFT_COMPUTE_F){
       /* compute f */
       if(ths->pnfft_flags & PNFFT_REAL_F)
         PNX(assign_f_r2r)(
-            ths, p, ths->g2, pre_psi,
-            2*m0, local_ngc, cutoff, 2, interlaced,
+            ths, nodes, p, ths->g2, pre_psi,
+            2*m0, local_ngc, cutoff, 2, use_interlacing, interlaced,
             nodes->f + 2*j);
       if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_f_r2r)(
-            ths, p, ths->g2, pre_psi,
-            m0, local_ngc, cutoff, 1, interlaced,
+            ths, nodes, p, ths->g2, pre_psi,
+            m0, local_ngc, cutoff, 1, use_interlacing, interlaced,
             nodes->f + j);
       else
         PNX(assign_f_c2c)(
-            ths, p, (C*)ths->g2, pre_psi,
-            m0, local_ngc, cutoff, interlaced,
+            ths, nodes, p, (C*)ths->g2, pre_psi,
+            m0, local_ngc, cutoff, use_interlacing, interlaced,
             (C*)nodes->f + j);
     } else if(compute_flags & PNFFT_COMPUTE_GRAD_F){
       /* compute grad_f */
       if(ths->pnfft_flags & PNFFT_REAL_F)
         PNX(assign_grad_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi,
-            2*m0, local_ngc, cutoff, 2, 2, interlaced,
+            ths, nodes, p, ths->g2, pre_psi, pre_dpsi,
+            2*m0, local_ngc, cutoff, 2, 2, use_interlacing, interlaced,
             nodes->grad_f + 2*3*j);
       else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_grad_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi,
-            m0, local_ngc, cutoff, 1, 1, interlaced,
+            ths, nodes, p, ths->g2, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, 1, 1, use_interlacing, interlaced,
             nodes->grad_f + 3*j);
       else
         PNX(assign_grad_f_c2c)(
-            ths, p, (C*)ths->g2, pre_psi, pre_dpsi,
-            m0, local_ngc, cutoff, interlaced,
+            ths, nodes, p, (C*)ths->g2, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, use_interlacing, interlaced,
             (C*)nodes->grad_f + 3*j);
     }
 
     if (compute_flags & PNFFT_COMPUTE_HESSIAN_F){
       if(ths->pnfft_flags & PNFFT_REAL_F)
         PNX(assign_hessian_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
-            2*m0, local_ngc, cutoff, 2, 2, interlaced,
+            ths, nodes, p, ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
+            2*m0, local_ngc, cutoff, 2, 2, use_interlacing, interlaced,
             nodes->hessian_f + 2*6*j);
       else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_hessian_f_r2r)(
-            ths, p, ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
-            m0, local_ngc, cutoff, 1, 1, interlaced,
+            ths, nodes, p, ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
+            m0, local_ngc, cutoff, 1, 1, use_interlacing, interlaced,
             nodes->hessian_f + 6*j);
       else 
         PNX(assign_hessian_f_c2c)(
-            ths, p, (C*)ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
-            m0, local_ngc, cutoff, interlaced,
+            ths, nodes, p, (C*)ths->g2, pre_psi, pre_dpsi, pre_ddpsi,
+            m0, local_ngc, cutoff, use_interlacing, interlaced,
             (C*)nodes->hessian_f + 6*j);
     }
   }
@@ -2965,20 +3017,20 @@ static void loop_over_particles_trafo(
 
 static void loop_over_particles_adj(
     PNX(plan) ths, PNX(nodes) nodes, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-    int interlaced,
+    int use_interlacing, int interlaced, unsigned compute_flags,
     INT *sorted_index
     )
 {
   const int cutoff = ths->cutoff;
   INT j, m0, u_j[3];
   R floor_nx_j[3];
-  R *pre_psi = NULL;
+  R *pre_psi = NULL, *pre_dpsi = NULL;
   R x[3];
 #if PNFFT_ENABLE_DEBUG
   R rsum = 0.0, grsum;
 #endif
 
-  if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
+  if( !(ths->pnfft_flags & PNFFT_PRE_PSI) )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   for(INT p=0; p<nodes->local_M; p++){
     j = (sorted_index) ? sorted_index[2*p+1] : p;
@@ -3007,7 +3059,7 @@ static void loop_over_particles_adj(
     }
 
     /* evaluate window on axes */
-    if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
+    if( !(ths->pnfft_flags & PNFFT_PRE_PSI) ){
       pre_psi_tensor(
           ths->n, ths->b, ths->m, cutoff, x, floor_nx_j,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
@@ -3021,15 +3073,49 @@ static void loop_over_particles_adj(
 #endif
     }
 
+    if( !(ths->pnfft_flags & PNFFT_PRE_GRAD_PSI) ){
+      if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) )
+        pre_dpsi_tensor(
+            ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
+            ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
+            pre_psi, ths->pnfft_flags,
+            pre_dpsi);
+
+#if PNFFT_ENABLE_DEBUG
+        /* Don't want to use PNX(debug_sum_print) because we are in a loop */
+        if(compute_flags & PNFFT_COMPUTE_GRAD_F)
+          for(int t=0; t<3*cutoff; t++)
+            rsum_derive += pnfft_fabs(pre_dpsi[t]);
+#endif
+    }
+
     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
-    if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
-      PNX(spread_f_r2r)(
-          ths, p, nodes->f[j], pre_psi, m0, local_ngc, cutoff, 1, interlaced,
-          ths->g2);
-    else
-      PNX(spread_f_c2c)(
-          ths, p, ((C*)nodes->f)[j], pre_psi, m0, local_ngc, cutoff, interlaced,
-          (C*)ths->g2);
+    if(compute_flags & PNFFT_COMPUTE_F){
+      if (ths->trafo_flag & PNFFTI_TRAFO_C2R)
+        PNX(spread_f_r2r)(
+            ths, nodes, p, nodes->f[j], pre_psi, m0, local_ngc, cutoff, 1,
+            use_interlacing, interlaced,
+            ths->g2);
+      else
+        PNX(spread_f_c2c)(
+            ths, nodes, p, ((C*)nodes->f)[j], pre_psi, m0, local_ngc, cutoff,
+            use_interlacing, interlaced,
+            (C*)ths->g2);
+    }
+
+    if(compute_flags & PNFFT_COMPUTE_GRAD_F){
+      /* compute grad_f */
+      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
+        PNX(spread_grad_f_r2r)(
+            ths, nodes, p, nodes->grad_f + 3*j, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, 1, 1, use_interlacing, interlaced,
+            ths->g2);
+      else
+        PNX(assign_grad_f_c2c)(
+            ths, nodes, p, (C*)nodes->grad_f + 3*j, pre_psi, pre_dpsi,
+            m0, local_ngc, cutoff, use_interlacing, interlaced,
+            (C*)ths->g2);
+    }
   }
 
 #if PNFFT_ENABLE_DEBUG
@@ -3038,101 +3124,9 @@ static void loop_over_particles_adj(
 #endif
 
   if(pre_psi != NULL) PNX(free)(pre_psi);
+  if(pre_dpsi != NULL)  PNX(free)(pre_dpsi);
 }
 
-
-// /* fill the real part of a complex array with the non-interlaced real valued charge spreading */
-// static void loop_over_particles_adj_interlaced_0(
-//     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-//     INT *sorted_index
-//     )
-// {
-//   const int cutoff = ths->cutoff;
-//   INT j, m0, u_j[3];
-//   R floor_nx_j[3];
-//   R *pre_psi = NULL;
-// 
-//   if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
-//     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-//   for(INT p=0; p<nodes->local_M; p++){
-//     j = (sorted_index) ? sorted_index[2*p+1] : p;
-// 
-//     lowest_summation_index(
-//         ths->n, ths->m, &(nodes->x[ths->d*j]), local_no_start, gcells_below,
-//         floor_nx_j, u_j);
-// 
-//     /* evaluate window on axes */
-//     if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
-//       pre_psi_tensor(
-//           ths->n, ths->b, ths->m, cutoff, &(nodes->x[ths->d*j]), floor_nx_j,
-//           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
-//           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
-//           pre_psi);
-//     }
-// 
-//     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
-//     PNX(spread_f_r2r)(
-//         ths, p, (R)ths->f[j*2], pre_psi, 2*m0, local_ngc, cutoff, 2, 0,
-//         ths->g2);
-//   }
-// 
-//   if(pre_psi != NULL)
-//     PNX(free)(pre_psi);
-// }
-// 
-// /* fill the imaginary part of a complex array with the interlaced real valued charge spreading */
-// static void loop_over_particles_adj_interlaced_1(
-//     PNX(plan) ths, INT *local_no_start, INT *local_ngc, INT *gcells_below,
-//     INT *sorted_index
-//     )
-// {
-//   const int cutoff = ths->cutoff;
-//   INT j, m0, u_j[3];
-//   R floor_nx_j[3];
-//   R *pre_psi = NULL;
-//   R x[3];
-// 
-//   if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) )
-//     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-//   for(INT p=0; p<nodes->local_M; p++){
-//     j = (sorted_index) ? sorted_index[2*p+1] : p;
-// 
-//     /* shift x by half the mesh width */
-//     for(int t=0; t<3; t++)
-//       x[t] = nodes->x[ths->d*j+t] + 0.5/ths->n[t];
-// 
-//     /* We need to compute the lowest summation index before we fold x back into [-0.5,0.5).
-//      * Otherwise u_j may be also folded and gets less than the local offset local_no_start. */
-//     lowest_summation_index(
-//         ths->n, ths->m, x, local_no_start, gcells_below,
-//         floor_nx_j, u_j);
-// 
-//     /* assure -0.5 <= x < 0.5 */
-//     for(int t=0; t<3; t++){
-//       if(x[t] >= 0.5){
-//         x[t] -= 1.0;
-//         floor_nx_j[t] -= ths->n[t];
-//       }
-//     }
-// 
-//     /* evaluate window on axes */
-//     if( !(ths->pnfft_flags & (PNFFT_PRE_PSI | PNFFT_PRE_FULL_PSI)) ){
-//       pre_psi_tensor(
-//           ths->n, ths->b, ths->m, cutoff, x, floor_nx_j,
-//           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
-//           ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_psi,
-//           pre_psi);
-//     }
-// 
-//     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
-//     PNX(spread_f_r2r)(
-//         ths, p, (R)ths->f[j*2], pre_psi, 2*m0, local_ngc, cutoff, 2, 0,
-//         ths->g2);
-//   }
-// 
-//   if(pre_psi != NULL)
-//     PNX(free)(pre_psi);
-// }
 
 
 void PNX(scale_ik_diff_c2c)(

@@ -173,6 +173,7 @@ typedef struct PNX(nodes_s){
   R *pre_dpsi_il;             /**< Precomputed window function derivatives, interlaced */
   R *pre_ddpsi_il;            /**< Precomputed window function 2nd derivatives, interlaced */
 
+  unsigned precompute_flags;
 } nodes_s;
 
 
@@ -339,11 +340,14 @@ void PNX(trafo_F)(
 void PNX(adjoint_F)(
     PNX(plan) ths);
 void PNX(trafo_B_ad)(
-    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags);
+    PNX(plan) ths, PNX(nodes) nodes,
+    int use_interlacing, int interlaced, unsigned compute_flags);
 void PNX(trafo_B_strided)(
-    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride, int interlaced);
+    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
+    int use_interlacing, int interlaced);
 void PNX(adjoint_B)(
-    PNX(plan) ths, PNX(nodes) nodes, int interlaced, unsigned compute_flags);
+    PNX(plan) ths, PNX(nodes) nodes,
+    int use_interlacing, int interlaced, unsigned compute_flags);
 void PNX(malloc_x)(
     PNX(nodes) nodes, unsigned pnfft_flags);
 void PNX(malloc_f)(
@@ -366,64 +370,78 @@ void PNX(scale_ik_diff2_c2c)(
 
 /* assign.c */
 void PNX(spread_f_c2c)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     C f, R *pre_psi, INT m0, const INT *grid_size, int cutoff,
-    int interlaced,
+    int use_interlacing, int interlaced,
     C *grid);
 void PNX(spread_f_r2r)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     R f, R *pre_psi,
     INT m0, const INT *grid_size, int cutoff, INT ostride,
-    int interlaced,
+    int use_interlacing, int interlaced,
     R *grid);
 void PNX(spread_grad_f_c2c)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     const C *grad_f, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, int interlaced,
+    INT m0, const INT *grid_size, int cutoff,
+    int use_interlacing, int interlaced,
     C *grid);
 void PNX(spread_grad_f_r2r)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     const R *grad_f, R *pre_psi, R *pre_dpsi,
     INT m0, const INT *grid_size, int cutoff,
-    INT istride, INT ostride, int interlaced,
+    INT istride, INT ostride,
+    int use_interlacing, int interlaced,
     R *grid);
 void PNX(assign_f_c2c)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     const C *grid, R *pre_psi,
-    INT m0, const INT *grid_size, int cutoff, int interlaced,
+    INT m0, const INT *grid_size, int cutoff,
+    int use_interlacing, int interlaced,
     C *f);
 void PNX(assign_f_r2r)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     const R *grid, R *pre_psi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, int interlaced,
+    INT m0, const INT *grid_size, int cutoff, INT istride,
+    int use_interlacing, int interlaced,
     R *f);
 void PNX(assign_grad_f_c2c)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     const C *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, int interlaced,
+    INT m0, const INT *grid_size, int cutoff,
+    int use_interlacing, int interlaced,
     C *grad_f);
 void PNX(assign_grad_f_r2r)(
-    PNX(plan) ths, INT ind,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
     const R *grid, R *pre_psi, R *pre_dpsi, INT m0, const INT *grid_size, int cutoff,
-    INT istride, INT ostride, int interlaced,
+    INT istride, INT ostride,
+    int use_interlacing, int interlaced,
     R *grad_f);
 void PNX(assign_hessian_f_c2c)(
-    PNX(plan) ths, INT ind,
-    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi, INT m0, const INT *grid_size, int cutoff, int interlaced,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
+    const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    int use_interlacing, int interlaced,
     C *hessian_f);
 void PNX(assign_hessian_f_r2r)(
-    PNX(plan) ths, INT ind,
-    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi, INT m0, const INT *grid_size, int cutoff,
-    INT istride, INT ostride, int interlaced,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
+    const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    INT istride, INT ostride,
+    int use_interlacing, int interlaced,
     R *hessian_f);
 void PNX(assign_f_and_grad_f_c2c)(
-    PNX(plan) ths, INT ind,
-    const C *grid, R *pre_psi, R *pre_dpsi, INT m0, const INT *grid_size, int cutoff, int interlaced,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
+    const C *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    int use_interlacing, int interlaced,
     C *f, C *grad_f);
 void PNX(assign_f_and_grad_f_r2r)(
-    PNX(plan) ths, INT ind,
-    const R *grid, R *pre_psi, R *pre_dpsi, INT m0, const INT *grid_size, int cutoff,
-    INT istride, INT ostride, int interlaced,
+    PNX(plan) ths, PNX(nodes) nodes, INT ind,
+    const R *grid, R *pre_psi, R *pre_dpsi,
+    INT m0, const INT *grid_size, int cutoff,
+    INT istride, INT ostride,
+    int use_interlacing, int interlaced,
     R *f, R *grad_f);
 
 
