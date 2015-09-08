@@ -1143,7 +1143,6 @@ void PNX(precompute_psi)(
   INT *sorted_index = NULL;
   R *buffer_psi=NULL, *buffer_dpsi=NULL, *buffer_ddpsi=NULL;
   R x[3];
-
   int use_func = 0, use_grad = 0, use_hess = 0;
   use_func = precompute_flags & PNFFT_PRE_PSI;
   if(ths->pnfft_flags & PNFFT_DIFF_AD){
