@@ -345,8 +345,11 @@ void PNX(trafo_B_ad)(
 void PNX(trafo_B_strided)(
     PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
     int use_interlacing, int interlaced);
-void PNX(adjoint_B)(
+void PNX(adjoint_B_ad)(
     PNX(plan) ths, PNX(nodes) nodes,
+    int use_interlacing, int interlaced, unsigned compute_flags);
+void PNX(adjoint_B_strided)(
+    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
     int use_interlacing, int interlaced, unsigned compute_flags);
 void PNX(malloc_x)(
     PNX(nodes) nodes, unsigned pnfft_flags);
@@ -361,10 +364,13 @@ void PNX(node_borders)(
     const INT *local_no, const INT *local_no_start,
     const R* x_max,
     R *lo, R *up);
-void PNX(scale_ik_diff_c2c)(
+void PNX(adjoint_scale_ik_diff_c2c)(
+    const C* g1, INT *local_N_start, INT *local_N, int dim, unsigned pnfft_flags,
+    C* g1_buffer);
+void PNX(trafo_scale_ik_diff_c2c)(
     const C* g1_buffer, INT *local_N_start, INT *local_N, int dim, unsigned pnfft_flags,
     C* g1);
-void PNX(scale_ik_diff2_c2c)(
+void PNX(trafo_scale_ik_diff2_c2c)(
     const C* g1_buffer, INT *local_N_start, INT *local_N, int dim, unsigned pnfft_flags,
     C* g1);
 

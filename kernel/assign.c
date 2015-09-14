@@ -557,7 +557,7 @@ static void spread_f_r2r_pre_full_psi(
 
 static void spread_grad_f_c2c_pre_psi(
     const C *grad_f, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *grid
     )
 { 
@@ -566,8 +566,9 @@ static void spread_grad_f_c2c_pre_psi(
   R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
   R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
 
-
-  if(use_interlacing) f *= 0.5;
+  C gf0 = grad_f[0] * (use_interlacing ? 0.5 : 1.0);
+  C gf1 = grad_f[1] * (use_interlacing ? 0.5 : 1.0);
+  C gf2 = grad_f[2] * (use_interlacing ? 0.5 : 1.0);
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
@@ -575,9 +576,9 @@ static void spread_grad_f_c2c_pre_psi(
       R psi_dxy = pre_dpsi_x[l0] * pre_psi_y[l1]; 
       R psi_xdy = pre_psi_x[l0]  * pre_dpsi_y[l1];
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2++ ){
-        grid[m2] += psi_dxy * pre_psi_z[l2]  * grad_f[0];
-        grid[m2] += psi_xdy * pre_psi_z[l2]  * grad_f[1];
-        grid[m2] += psi_xy  * pre_dpsi_z[l2] * grad_f[2];
+        grid[m2] += psi_dxy * pre_psi_z[l2]  * gf0;
+        grid[m2] += psi_xdy * pre_psi_z[l2]  * gf1;
+        grid[m2] += psi_xy  * pre_dpsi_z[l2] * gf2;
       }
     }
   }
@@ -585,20 +586,22 @@ static void spread_grad_f_c2c_pre_psi(
 
 static void spread_grad_f_c2c_pre_full_psi(
     const C *grad_f, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *grid
     )
 { 
   INT m1, m2, l0, l1, l2, dm=0;
 
-  if(use_interlacing) f *= 0.5;
+  C gf0 = grad_f[0] * (use_interlacing ? 0.5 : 1.0);
+  C gf1 = grad_f[1] * (use_interlacing ? 0.5 : 1.0);
+  C gf2 = grad_f[2] * (use_interlacing ? 0.5 : 1.0);
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2++, dm+=3 ){
-        grid[m2] += pre_dpsi[dm+0] * grad_f[0];
-        grid[m2] += pre_dpsi[dm+1] * grad_f[1];
-        grid[m2] += pre_dpsi[dm+2] * grad_f[2];
+        grid[m2] += pre_dpsi[dm+0] * gf0;
+        grid[m2] += pre_dpsi[dm+1] * gf1;
+        grid[m2] += pre_dpsi[dm+2] * gf2;
       }
     }
   }
@@ -606,7 +609,7 @@ static void spread_grad_f_c2c_pre_full_psi(
 
 static void spread_grad_f_r2r_pre_psi(
     const R *grad_f, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *grid
     )
 { 
@@ -615,7 +618,9 @@ static void spread_grad_f_r2r_pre_psi(
   R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
   R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
 
-  if(use_interlacing) f *= 0.5;
+  R gf0 = grad_f[0*istride] * (use_interlacing ? 0.5 : 1.0);
+  R gf1 = grad_f[1*istride] * (use_interlacing ? 0.5 : 1.0);
+  R gf2 = grad_f[2*istride] * (use_interlacing ? 0.5 : 1.0);
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*ostride){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*ostride){
@@ -623,9 +628,9 @@ static void spread_grad_f_r2r_pre_psi(
       R psi_dxy = pre_dpsi_x[l0] * pre_psi_y[l1]; 
       R psi_xdy = pre_psi_x[l0]  * pre_dpsi_y[l1];
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=ostride ){
-        grid[m2] += psi_dxy * pre_psi_z[l2]  * grad_f[0*istride];
-        grid[m2] += psi_xdy * pre_psi_z[l2]  * grad_f[1*istride];
-        grid[m2] += psi_xy  * pre_dpsi_z[l2] * grad_f[2*istride];
+        grid[m2] += psi_dxy * pre_psi_z[l2]  * gf0;
+        grid[m2] += psi_xdy * pre_psi_z[l2]  * gf1;
+        grid[m2] += psi_xy  * pre_dpsi_z[l2] * gf2;
       }
     }
   }
@@ -633,32 +638,31 @@ static void spread_grad_f_r2r_pre_psi(
 
 static void spread_grad_f_r2r_pre_full_psi(
     const R *grad_f, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *grid
     )
 { 
   INT m1, m2, l0, l1, l2, m=0;
 
-  if(use_interlacing) f *= 0.5;
+  R gf0 = grad_f[0*istride] * (use_interlacing ? 0.5 : 1.0);
+  R gf1 = grad_f[1*istride] * (use_interlacing ? 0.5 : 1.0);
+  R gf2 = grad_f[2*istride] * (use_interlacing ? 0.5 : 1.0);
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*ostride){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*ostride){
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=ostride, m++ ){
-        grid[m2] += pre_dpsi[m] * grad_f[0*istride];
-        grid[m2] += pre_dpsi[m] * grad_f[1*istride];
-        grid[m2] += pre_dpsi[m] * grad_f[2*istride];
+        grid[m2] += pre_dpsi[m] * gf0;
+        grid[m2] += pre_dpsi[m] * gf1;
+        grid[m2] += pre_dpsi[m] * gf2;
       }
     }
   }
 }
 
 
-
-
-
 static void assign_f_c2c_pre_psi(
     const C *grid, R *pre_psi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *fv
     )
 { 
@@ -684,7 +688,7 @@ static void assign_f_c2c_pre_psi(
 
 static void assign_f_c2c_pre_full_psi(
     const C *grid, R *pre_psi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *fv
     )
 { 
@@ -706,7 +710,7 @@ static void assign_f_c2c_pre_full_psi(
 
 static void assign_f_r2r_pre_psi(
     const R *grid, R *pre_psi,
-    INT m0, const INT *grid_size, int cutoff, INT istride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride,
     R *fv
     )
 { 
@@ -732,7 +736,7 @@ static void assign_f_r2r_pre_psi(
 
 static void assign_f_r2r_pre_full_psi(
     const R *grid, R *pre_psi,
-    INT m0, const INT *grid_size, int cutoff, int istride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, int istride,
     R *fv
     )
 { 
@@ -754,7 +758,7 @@ static void assign_f_r2r_pre_full_psi(
 
 static void assign_grad_f_c2c_pre_psi(
     const C *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *grad_f
     )
 { 
@@ -786,7 +790,7 @@ static void assign_grad_f_c2c_pre_psi(
 
 static void assign_grad_f_c2c_pre_full_psi(
     const C *grid, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *grad_f
     )
 { 
@@ -812,7 +816,7 @@ static void assign_grad_f_c2c_pre_full_psi(
 
 static void assign_grad_f_r2r_pre_psi(
     const R *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *grad_f
     )
 { 
@@ -844,7 +848,7 @@ static void assign_grad_f_r2r_pre_psi(
 
 static void assign_grad_f_r2r_pre_full_psi(
     const R *grid, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *grad_f
     )
 { 
@@ -872,7 +876,7 @@ static void assign_grad_f_r2r_pre_full_psi(
 
 static void assign_hessian_f_c2c_pre_psi(
     const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *hessian_f
     )
 { 
@@ -915,7 +919,7 @@ static void assign_hessian_f_c2c_pre_psi(
 
 static void assign_hessian_f_c2c_pre_full_psi(
     const C *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *hessian_f
     )
 { 
@@ -946,7 +950,7 @@ static void assign_hessian_f_c2c_pre_full_psi(
 
 static void assign_hessian_f_r2r_pre_psi(
     const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *hessian_f
     )
 { 
@@ -989,7 +993,7 @@ static void assign_hessian_f_r2r_pre_psi(
 
 static void assign_hessian_f_r2r_pre_full_psi(
     const R *grid, R *pre_psi, R *pre_dpsi, R *pre_ddpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *hessian_f
     )
 { 
@@ -1024,7 +1028,7 @@ static void assign_hessian_f_r2r_pre_full_psi(
 
 static void assign_f_and_grad_f_c2c_pre_psi(
     const C *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *fv, C *grad_f
     )
 { 
@@ -1051,7 +1055,6 @@ static void assign_f_and_grad_f_c2c_pre_psi(
   if(use_interlacing){
     f *= 0.5;
     g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
-    g3 *= 0.5; g4 *= 0.5; g5 *= 0.5;
   }
 
   *fv += f;
@@ -1060,7 +1063,7 @@ static void assign_f_and_grad_f_c2c_pre_psi(
 
 static void assign_f_and_grad_f_c2c_pre_full_psi(
     const C *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing,
     C *fv, C *grad_f
     )
 { 
@@ -1081,7 +1084,6 @@ static void assign_f_and_grad_f_c2c_pre_full_psi(
   if(use_interlacing){
     f *= 0.5;
     g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
-    g3 *= 0.5; g4 *= 0.5; g5 *= 0.5;
   }
 
   *fv += f;
@@ -1090,7 +1092,7 @@ static void assign_f_and_grad_f_c2c_pre_full_psi(
 
 static void assign_f_and_grad_f_r2r_pre_psi(
     const R *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *fv, R *grad_f
     )
 { 
@@ -1117,7 +1119,6 @@ static void assign_f_and_grad_f_r2r_pre_psi(
   if(use_interlacing){
     f *= 0.5;
     g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
-    g3 *= 0.5; g4 *= 0.5; g5 *= 0.5;
   }
 
   *fv += f;
@@ -1126,7 +1127,7 @@ static void assign_f_and_grad_f_r2r_pre_psi(
 
 static void assign_f_and_grad_f_r2r_pre_full_psi(
     const R *grid, R *pre_psi, R *pre_dpsi,
-    INT m0, const INT *grid_size, int cutoff, INT istride, INT ostride,
+    INT m0, const INT *grid_size, int cutoff, int use_interlacing, INT istride, INT ostride,
     R *fv, R *grad_f
     )
 {
@@ -1147,7 +1148,6 @@ static void assign_f_and_grad_f_r2r_pre_full_psi(
   if(use_interlacing){
     f *= 0.5;
     g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
-    g3 *= 0.5; g4 *= 0.5; g5 *= 0.5;
   }
 
   *fv += f;
