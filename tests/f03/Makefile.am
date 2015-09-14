@@ -10,7 +10,7 @@ LDADD = $(top_builddir)/lib@PNFFT_PREFIX@pnfft@PREC_SUFFIX@.la $(pfft_LIBS) $(ff
 # noinst_LTLIBRARIES = libtests.la
 
 # search for Fortran source files to build objects
-AM_DEFAULT_SOURCE_EXT = .f90
+AM_DEFAULT_SOURCE_EXT = .F03
 
 check_PROGRAMS = 
 
