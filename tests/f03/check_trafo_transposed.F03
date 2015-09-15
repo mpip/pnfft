@@ -218,7 +218,7 @@ subroutine pnfft_perform_guru( &
   real(C_DOUBLE), pointer :: x(:,:)
   real(C_DOUBLE) :: lower_border(3), upper_border(3)
   real(C_DOUBLE) :: local_f_hat_sum
-  type(C_PTR) :: pnfft, cf_hat, cx
+  type(C_PTR) :: pnfft, nodes, cf_hat, cx
   integer ierror, myrank, comm_cart_3d
   double precision time, max_time
 
@@ -241,10 +241,13 @@ subroutine pnfft_perform_guru( &
       local_N, local_N_start, lower_border, upper_border)
 
   ! Plan parallel NFFT
-  pnfft = pnfft_init_guru(3, N, Nos, x_max, local_M, m, &
-      PNFFT_MALLOC_X + PNFFT_MALLOC_F_HAT + PNFFT_MALLOC_F + &
+  pnfft = pnfft_init_guru(3, N, Nos, x_max, m, &
+      PNFFT_MALLOC_F_HAT + &
       PNFFT_TRANSPOSED_F_HAT + window_flag, &
       PFFT_ESTIMATE, comm_cart_3d)
+
+  ! Initalize nodes
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X + PNFFT_MALLOC_F)
 
   ! Get data pointers in C format
   cf_hat = pnfft_get_f_hat(pnfft)
@@ -266,7 +269,7 @@ subroutine pnfft_perform_guru( &
 
   ! Execute parallel NFFT
   time = -MPI_Wtime()
-  call pnfft_trafo(pnfft)
+  call pnfft_trafo(pnfft, nodes, PNFFT_COMPUTE_F)
   time = time + MPI_Wtime()
 
   call MPI_Reduce(time, max_time, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm_cart_3d, ierror)
@@ -284,6 +287,7 @@ subroutine pnfft_perform_guru( &
   enddo
   call MPI_Allreduce(local_f_hat_sum, f_hat_sum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, comm_cart_3d, ierror)
 
-  call pnfft_finalize(pnfft, PNFFT_FREE_X + PNFFT_FREE_F_HAT)
+  call pnfft_finalize(pnfft, PNFFT_FREE_F_HAT)
+  call pnfft_free_nodes(nodes, PNFFT_FREE_X)
   call MPI_Comm_free(comm_cart_3d, ierror)
 end subroutine pnfft_perform_guru
