@@ -13,7 +13,7 @@ program main
   integer(C_INTPTR_T) :: N(3), local_N(3), local_N_start(3)
   integer(C_INTPTR_T) :: local_M, d=3
   real(C_DOUBLE) :: lower_border(3), upper_border(3)
-  type(C_PTR) :: pnfft, cf_hat, cf, cx
+  type(C_PTR) :: pnfft, nodes, cf_hat, cf, cx
   complex(C_DOUBLE_COMPLEX), pointer :: f_hat(:,:,:), f(:)
   real(C_DOUBLE), pointer :: x(:,:)
 
@@ -44,12 +44,15 @@ program main
       local_N, local_N_start, lower_border, upper_border)
 
 ! Plan parallel NFFT
-  pnfft = pnfft_init_3d(N, local_M, comm_cart_3d)
+  pnfft = pnfft_init_3d(N, comm_cart_3d)
+
+! Initalize nodes
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X + PNFFT_MALLOC_F)
 
 ! Get data pointers in C format
   cf_hat = pnfft_get_f_hat(pnfft)
-  cf     = pnfft_get_f(pnfft)
-  cx     = pnfft_get_x(pnfft)
+  cf     = pnfft_get_f(nodes)
+  cx     = pnfft_get_x(nodes)
 
 ! Convert data pointers to Fortran format
   call c_f_pointer(cf_hat, f_hat, [local_N])
@@ -71,7 +74,7 @@ program main
   endif
 
 ! Execute parallel NFFT
-  call pnfft_trafo(pnfft)
+  call pnfft_trafo(pnfft, nodes, PNFFT_COMPUTE_F)
 
 ! Print NFFT results
   if(myrank .eq. 0) then
@@ -81,7 +84,7 @@ program main
   endif
 
 ! Execute parallel adjoint NFFT
-  call pnfft_adj(pnfft)
+  call pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_F)
 
 ! Scale data
   do l3=1,local_N(3)
@@ -101,7 +104,9 @@ program main
 
 ! Free mem and finalize      
   call pnfft_finalize(pnfft, &
-      PNFFT_FREE_X + PNFFT_FREE_F_HAT + PNFFT_FREE_F)
+      PNFFT_FREE_F_HAT)
+  call pnfft_free_nodes(nodes, &
+      PNFFT_FREE_X + PNFFT_FREE_F)
   call MPI_Comm_free(comm_cart_3d, ierror)
   call pnfft_cleanup()
   call MPI_Finalize(ierror)

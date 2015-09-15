@@ -244,16 +244,67 @@
       integer(@C_MPI_FINT@), value :: comm_cart
     end function pnfftl_init_guru_c2r
     
-! Unable to generate Fortran interface for pnfftl_init_nodes
-! Unable to generate Fortran interface for pnfftl_free_nodes
-! Unable to generate Fortran interface for pnfftl_precompute_psi
-! Unable to generate Fortran interface for pnfftl_set_f
-! Unable to generate Fortran interface for pnfftl_set_grad_f
-! Unable to generate Fortran interface for pnfftl_set_hessian_f
-! Unable to generate Fortran interface for pnfftl_set_f_real
-! Unable to generate Fortran interface for pnfftl_set_grad_f_real
-! Unable to generate Fortran interface for pnfftl_set_hessian_f_real
-! Unable to generate Fortran interface for pnfftl_set_x
+    type(C_PTR) function pnfftl_init_nodes(local_M,pnfft_flags) bind(C, name='pnfftl_init_nodes')
+      import
+      integer(C_INTPTR_T), value :: local_M
+      integer(C_INT), value :: pnfft_flags
+    end function pnfftl_init_nodes
+    
+    subroutine pnfftl_free_nodes(ths,pnfft_finalize_flags) bind(C, name='pnfftl_free_nodes')
+      import
+      type(C_PTR), value :: ths
+      integer(C_INT), value :: pnfft_finalize_flags
+    end subroutine pnfftl_free_nodes
+    
+    subroutine pnfftl_precompute_psi(ths,nodes,precompute_flags) bind(C, name='pnfftl_precompute_psi')
+      import
+      type(C_PTR), value :: ths
+      type(C_PTR), value :: nodes
+      integer(C_INT), value :: precompute_flags
+    end subroutine pnfftl_precompute_psi
+    
+    subroutine pnfftl_set_f(f,nodes) bind(C, name='pnfftl_set_f')
+      import
+      complex(C_LONG_DOUBLE_COMPLEX), dimension(*), intent(out) :: f
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_f
+    
+    subroutine pnfftl_set_grad_f(grad_f,nodes) bind(C, name='pnfftl_set_grad_f')
+      import
+      complex(C_LONG_DOUBLE_COMPLEX), dimension(*), intent(out) :: grad_f
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_grad_f
+    
+    subroutine pnfftl_set_hessian_f(hessian_f,nodes) bind(C, name='pnfftl_set_hessian_f')
+      import
+      complex(C_LONG_DOUBLE_COMPLEX), dimension(*), intent(out) :: hessian_f
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_hessian_f
+    
+    subroutine pnfftl_set_f_real(f,nodes) bind(C, name='pnfftl_set_f_real')
+      import
+      real(C_LONG_DOUBLE), dimension(*), intent(out) :: f
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_f_real
+    
+    subroutine pnfftl_set_grad_f_real(grad_f,nodes) bind(C, name='pnfftl_set_grad_f_real')
+      import
+      real(C_LONG_DOUBLE), dimension(*), intent(out) :: grad_f
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_grad_f_real
+    
+    subroutine pnfftl_set_hessian_f_real(hessian_f,nodes) bind(C, name='pnfftl_set_hessian_f_real')
+      import
+      real(C_LONG_DOUBLE), dimension(*), intent(out) :: hessian_f
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_hessian_f_real
+    
+    subroutine pnfftl_set_x(x,nodes) bind(C, name='pnfftl_set_x')
+      import
+      real(C_LONG_DOUBLE), dimension(*), intent(out) :: x
+      type(C_PTR), value :: nodes
+    end subroutine pnfftl_set_x
+    
     subroutine pnfftl_set_f_hat(f_hat,ths) bind(C, name='pnfftl_set_f_hat')
       import
       complex(C_LONG_DOUBLE_COMPLEX), dimension(*), intent(out) :: f_hat
@@ -274,13 +325,41 @@
       type(C_PTR), value :: ths
     end subroutine pnfftl_set_b
     
-! Unable to generate Fortran interface for pnfftl_get_f
-! Unable to generate Fortran interface for pnfftl_get_grad_f
-! Unable to generate Fortran interface for pnfftl_get_hessian_f
-! Unable to generate Fortran interface for pnfftl_get_f_real
-! Unable to generate Fortran interface for pnfftl_get_grad_f_real
-! Unable to generate Fortran interface for pnfftl_get_hessian_f_real
-! Unable to generate Fortran interface for pnfftl_get_x
+    type(C_PTR) function pnfftl_get_f(nodes) bind(C, name='pnfftl_get_f')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_f
+    
+    type(C_PTR) function pnfftl_get_grad_f(nodes) bind(C, name='pnfftl_get_grad_f')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_grad_f
+    
+    type(C_PTR) function pnfftl_get_hessian_f(nodes) bind(C, name='pnfftl_get_hessian_f')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_hessian_f
+    
+    type(C_PTR) function pnfftl_get_f_real(nodes) bind(C, name='pnfftl_get_f_real')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_f_real
+    
+    type(C_PTR) function pnfftl_get_grad_f_real(nodes) bind(C, name='pnfftl_get_grad_f_real')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_grad_f_real
+    
+    type(C_PTR) function pnfftl_get_hessian_f_real(nodes) bind(C, name='pnfftl_get_hessian_f_real')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_hessian_f_real
+    
+    type(C_PTR) function pnfftl_get_x(nodes) bind(C, name='pnfftl_get_x')
+      import
+      type(C_PTR), value :: nodes
+    end function pnfftl_get_x
+    
     type(C_PTR) function pnfftl_get_f_hat(ths) bind(C, name='pnfftl_get_f_hat')
       import
       type(C_PTR), value :: ths
@@ -343,8 +422,20 @@
       integer(C_INT), value :: pnfft_finalize_flags
     end subroutine pnfftl_finalize
     
-! Unable to generate Fortran interface for pnfftl_trafo
-! Unable to generate Fortran interface for pnfftl_adj
+    subroutine pnfftl_trafo(ths,nodes,compute_flags) bind(C, name='pnfftl_trafo')
+      import
+      type(C_PTR), value :: ths
+      type(C_PTR), value :: nodes
+      integer(C_INT), value :: compute_flags
+    end subroutine pnfftl_trafo
+    
+    subroutine pnfftl_adj(ths,nodes,compute_flags) bind(C, name='pnfftl_adj')
+      import
+      type(C_PTR), value :: ths
+      type(C_PTR), value :: nodes
+      integer(C_INT), value :: compute_flags
+    end subroutine pnfftl_adj
+    
     subroutine pnfftl_init() bind(C, name='pnfftl_init')
       import
     end subroutine pnfftl_init
