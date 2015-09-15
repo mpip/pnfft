@@ -56,8 +56,14 @@
   integer(C_INT), parameter :: PNFFT_OMIT_FFT = 64
   integer(C_INT), parameter :: PNFFT_OMIT_CONV = 128
 
+! mixed shifted unsigned and redirections
+  integer(C_INT), parameter :: PNFFT_PRE_GRAD_PSI = 4  &
+      + PNFFT_PRE_PSI 
+  integer(C_INT), parameter :: PNFFT_PRE_HESSIAN_PSI = 8  &
+      + PNFFT_PRE_GRAD_PSI 
+
 ! redirections
-  integer(C_INT), parameter :: PNFFT_PRE_PHI_HUT = PRE_PHI_HAT
+  integer(C_INT), parameter :: PNFFT_PRE_PHI_HUT = PNFFT_PRE_PHI_HAT
   integer(C_INT), parameter :: PNFFT_PRE_INTPOL_PSI = PNFFT_PRE_CONST_PSI &
       + PNFFT_PRE_LIN_PSI &
       + PNFFT_PRE_QUAD_PSI &
@@ -65,10 +71,9 @@
   integer(C_INT), parameter :: PNFFT_WINDOW_GAUSSIAN_T = PNFFT_USE_FK_GAUSSIAN_T  &
       + PNFFT_WINDOW_GAUSSIAN
   integer(C_INT), parameter :: PNFFT_FREE_F_HAT = PNFFT_MALLOC_F_HAT
-  integer(C_INT), parameter :: PNFFT_PRE_ONE_PSI = PNFFT_PRE_INTPOL_PSI &
-      + PNFFT_PRE_FG_PSI &
-      + PNFFT_PRE_PSI &
-      + PNFFT_PRE_FULL_PSI
+  integer(C_INT), parameter :: PNFFT_PRE_ONE_PSI = PNFFT_PRE_PSI  &
+      + PNFFT_PRE_GRAD_PSI  &
+      + PNFFT_PRE_HESSIAN_PSI
   integer(C_INT), parameter :: PNFFT_FREE_X = PNFFT_MALLOC_X
   integer(C_INT), parameter :: PNFFT_FREE_F = PNFFT_MALLOC_F
   integer(C_INT), parameter :: PNFFT_FREE_GRAD_F = PNFFT_MALLOC_GRAD_F

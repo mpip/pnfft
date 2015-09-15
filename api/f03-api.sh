@@ -44,6 +44,9 @@ echo
 echo "! shifted unsigned"
 perl -pe 'if (/#define +([A-Z0-9_]+) +\(([0-9]+)U? *<< *([0-9]+)\)/) { print "\n  integer\(C_INT\), parameter :: $1 = ",$2 << $3,"\n"; }' < pnfft.h | grep 'integer(C_INT)'
 echo
+echo "! mixed shifted unsigned and redirections"
+perl -pe 'if (/#define +([A-Z0-9_]+) +\(\( *\(([0-9]+)U? *<< *([0-9]+)\) +([A-Z0-9_| ]+)\)\)/) { print "\n  integer\(C_INT\), parameter :: $1 = ",$2 << $3," $4\n"; }' < pnfft.h | grep 'integer(C_INT)' | sed 's/| / \&\n      + /g'
+echo
 echo "! redirections"
 perl -pe 'if (/#define +([A-Z0-9_]+) +\(\(([A-Z0-9_| ]+)\)\)/) { print "\n  integer\(C_INT\), parameter :: $1 = $2\n"; }' < pnfft.h | grep 'integer(C_INT)' | sed 's/| / \&\n      + /g'
 
