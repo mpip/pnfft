@@ -7,10 +7,13 @@
 # every FFTW function that takes an MPI_Comm argument needs a wrapper
 # function that takes a Fortran integer and converts it to MPI_Comm.
 
+# Use this script in the following way:
+# ./f03-wrap.sh > f03-wrap.c
+
 # pnfft.h depends on fftw3-mpi.h, fftw3.h and pfft.h
 # set these paths such that the preprocessor can find the required headers
-PFFT_INC=$HOME/local/pfft-1.0.6-alpha/include
-FFTW_INC=$HOME/local/fftw-3.3.3/include
+PFFT_INC=$HOME/local/pfft-1.0.8-alpha/include
+FFTW_INC=$HOME/local/fftw-3.3.4/include
 
 echo "/* Generated automatically.  DO NOT EDIT! */"
 echo
