@@ -565,10 +565,11 @@ static void spread_grad_f_c2c_pre_psi(
   R *pre_psi_x = &pre_psi[0*cutoff], *pre_dpsi_x = &pre_dpsi[0*cutoff];
   R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
   R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
+  C g0 = grad_f[0], g1 = grad_f[1], g2 = grad_f[2];
 
-  C gf0 = grad_f[0] * (use_interlacing ? 0.5 : 1.0);
-  C gf1 = grad_f[1] * (use_interlacing ? 0.5 : 1.0);
-  C gf2 = grad_f[2] * (use_interlacing ? 0.5 : 1.0);
+  if(use_interlacing){
+    g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
+  }
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
@@ -576,9 +577,9 @@ static void spread_grad_f_c2c_pre_psi(
       R psi_dxy = pre_dpsi_x[l0] * pre_psi_y[l1]; 
       R psi_xdy = pre_psi_x[l0]  * pre_dpsi_y[l1];
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2++ ){
-        grid[m2] += psi_dxy * pre_psi_z[l2]  * gf0;
-        grid[m2] += psi_xdy * pre_psi_z[l2]  * gf1;
-        grid[m2] += psi_xy  * pre_dpsi_z[l2] * gf2;
+        grid[m2] += psi_dxy * pre_psi_z[l2]  * g0;
+        grid[m2] += psi_xdy * pre_psi_z[l2]  * g1;
+        grid[m2] += psi_xy  * pre_dpsi_z[l2] * g2;
       }
     }
   }
@@ -591,17 +592,18 @@ static void spread_grad_f_c2c_pre_full_psi(
     )
 { 
   INT m1, m2, l0, l1, l2, dm=0;
+  C g0 = grad_f[0], g1 = grad_f[1], g2 = grad_f[2];
 
-  C gf0 = grad_f[0] * (use_interlacing ? 0.5 : 1.0);
-  C gf1 = grad_f[1] * (use_interlacing ? 0.5 : 1.0);
-  C gf2 = grad_f[2] * (use_interlacing ? 0.5 : 1.0);
+  if(use_interlacing){
+    g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
+  }
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]){
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2++, dm+=3 ){
-        grid[m2] += pre_dpsi[dm+0] * gf0;
-        grid[m2] += pre_dpsi[dm+1] * gf1;
-        grid[m2] += pre_dpsi[dm+2] * gf2;
+        grid[m2] += pre_dpsi[dm+0] * g0;
+        grid[m2] += pre_dpsi[dm+1] * g1;
+        grid[m2] += pre_dpsi[dm+2] * g2;
       }
     }
   }
@@ -617,10 +619,11 @@ static void spread_grad_f_r2r_pre_psi(
   R *pre_psi_x = &pre_psi[0*cutoff], *pre_dpsi_x = &pre_dpsi[0*cutoff];
   R *pre_psi_y = &pre_psi[1*cutoff], *pre_dpsi_y = &pre_dpsi[1*cutoff];
   R *pre_psi_z = &pre_psi[2*cutoff], *pre_dpsi_z = &pre_dpsi[2*cutoff];
+  R g0 = grad_f[0*istride], g1 = grad_f[1*istride], g2 = grad_f[2*istride];
 
-  R gf0 = grad_f[0*istride] * (use_interlacing ? 0.5 : 1.0);
-  R gf1 = grad_f[1*istride] * (use_interlacing ? 0.5 : 1.0);
-  R gf2 = grad_f[2*istride] * (use_interlacing ? 0.5 : 1.0);
+  if(use_interlacing){
+    g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
+  }
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*ostride){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*ostride){
@@ -628,9 +631,9 @@ static void spread_grad_f_r2r_pre_psi(
       R psi_dxy = pre_dpsi_x[l0] * pre_psi_y[l1]; 
       R psi_xdy = pre_psi_x[l0]  * pre_dpsi_y[l1];
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=ostride ){
-        grid[m2] += psi_dxy * pre_psi_z[l2]  * gf0;
-        grid[m2] += psi_xdy * pre_psi_z[l2]  * gf1;
-        grid[m2] += psi_xy  * pre_dpsi_z[l2] * gf2;
+        grid[m2] += psi_dxy * pre_psi_z[l2]  * g0;
+        grid[m2] += psi_xdy * pre_psi_z[l2]  * g1;
+        grid[m2] += psi_xy  * pre_dpsi_z[l2] * g2;
       }
     }
   }
@@ -643,17 +646,18 @@ static void spread_grad_f_r2r_pre_full_psi(
     )
 { 
   INT m1, m2, l0, l1, l2, m=0;
+  R g0 = grad_f[0*istride], g1 = grad_f[1*istride], g2 = grad_f[2*istride];
 
-  R gf0 = grad_f[0*istride] * (use_interlacing ? 0.5 : 1.0);
-  R gf1 = grad_f[1*istride] * (use_interlacing ? 0.5 : 1.0);
-  R gf2 = grad_f[2*istride] * (use_interlacing ? 0.5 : 1.0);
+  if(use_interlacing){
+    g0 *= 0.5; g1 *= 0.5; g2 *= 0.5;
+  }
   
   for(l0=0; l0<cutoff; l0++, m0 += grid_size[1]*grid_size[2]*ostride){
     for(l1=0, m1=m0; l1<cutoff; l1++, m1 += grid_size[2]*ostride){
       for(l2=0, m2 = m1; l2<cutoff; l2++, m2+=ostride, m++ ){
-        grid[m2] += pre_dpsi[m] * gf0;
-        grid[m2] += pre_dpsi[m] * gf1;
-        grid[m2] += pre_dpsi[m] * gf2;
+        grid[m2] += pre_dpsi[m] * g0;
+        grid[m2] += pre_dpsi[m] * g1;
+        grid[m2] += pre_dpsi[m] * g2;
       }
     }
   }

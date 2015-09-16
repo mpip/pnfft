@@ -340,16 +340,12 @@ void PNX(trafo_F)(
 void PNX(adjoint_F)(
     PNX(plan) ths);
 void PNX(trafo_B_ad)(
-    PNX(plan) ths, PNX(nodes) nodes,
+    PNX(plan) ths, PNX(nodes) nodes, 
+    R *f, R *grad_f, R *hessian_f, INT offset, INT stride,
     int use_interlacing, int interlaced, unsigned compute_flags);
-void PNX(trafo_B_strided)(
-    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
-    int use_interlacing, int interlaced);
 void PNX(adjoint_B_ad)(
     PNX(plan) ths, PNX(nodes) nodes,
-    int use_interlacing, int interlaced, unsigned compute_flags);
-void PNX(adjoint_B_strided)(
-    PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
+    R *f, R *grad_f, INT offset, INT stride,
     int use_interlacing, int interlaced, unsigned compute_flags);
 void PNX(malloc_x)(
     PNX(nodes) nodes, unsigned malloc_flags);

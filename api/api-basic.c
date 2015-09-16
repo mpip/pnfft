@@ -119,7 +119,7 @@ static void trafo_F_and_B_ik_complex_input(
 
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     if( !(compute_flags & PNFFT_OMIT_CONV) )
-      PNX(trafo_B_strided)(ths, nodes, nodes->f, 0, 1, use_interlacing, interlaced);
+      PNX(trafo_B_ad)(ths, nodes, nodes->f, NULL, NULL, 0, 1, use_interlacing, interlaced, PNFFT_COMPUTE_F);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
 
@@ -139,7 +139,7 @@ static void trafo_F_and_B_ik_complex_input(
 
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
       if( !(compute_flags & PNFFT_OMIT_CONV) )
-        PNX(trafo_B_strided)(ths, nodes, nodes->grad_f, dim, 3, use_interlacing, interlaced);
+        PNX(trafo_B_ad)(ths, nodes, nodes->grad_f, NULL, NULL, dim, 3, use_interlacing, interlaced, PNFFT_COMPUTE_F);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     }
   }
@@ -160,7 +160,7 @@ static void trafo_F_and_B_ik_complex_input(
 
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
       if( !(compute_flags & PNFFT_OMIT_CONV) )
-        PNX(trafo_B_strided)(ths, nodes, nodes->hessian_f, dim, 6, use_interlacing, interlaced);
+        PNX(trafo_B_ad)(ths, nodes, nodes->hessian_f, NULL, NULL, dim, 6, use_interlacing, interlaced, PNFFT_COMPUTE_F);
       PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     }
   }
@@ -190,7 +190,7 @@ static void trafo(
     /* multiplication with matrix B */
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
     if( !(compute_flags & PNFFT_OMIT_CONV) )
-      PNX(trafo_B_ad)(ths, nodes, use_interlacing, interlaced, compute_flags);
+      PNX(trafo_B_ad)(ths, nodes, nodes->f, nodes->grad_f, nodes->hessian_f, 0, 1, use_interlacing, interlaced, compute_flags);
     PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   }
 }
@@ -257,7 +257,7 @@ static void adjoint_B_and_F_ik_complex_input(
 {
   /* save g1 since we want to accumulate all results at the end */
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
-  if( !(compute_flags & PNFFT_OMIT_DECONV) )
+  if( ~compute_flags & PNFFT_OMIT_DECONV )
     for(INT k=0; k<ths->local_N_total; k++)
       ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
@@ -266,11 +266,11 @@ static void adjoint_B_and_F_ik_complex_input(
   if( compute_flags & PNFFT_COMPUTE_F){
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
     if( !(compute_flags & PNFFT_OMIT_CONV) )
-      PNX(adjoint_B_strided)(ths, nodes, nodes->f, 0, 1, use_interlacing, interlaced, compute_flags);
+      PNX(adjoint_B_ad)(ths, nodes, nodes->f, NULL, 0, 1, use_interlacing, interlaced, PNFFT_COMPUTE_F);
     PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
 
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
-    if( !(compute_flags & PNFFT_OMIT_FFT) )
+    if( ~compute_flags & PNFFT_OMIT_FFT )
       PNX(adjoint_F)(ths);
     PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
 
@@ -285,7 +285,7 @@ static void adjoint_B_and_F_ik_complex_input(
     for(int dim =0; dim<3; dim++){
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
       if( !(compute_flags & PNFFT_OMIT_CONV) ){
-        PNX(adjoint_B_strided)(ths, nodes, nodes->grad_f, dim, 3, use_interlacing, interlaced, compute_flags);
+        PNX(adjoint_B_ad)(ths, nodes, nodes->grad_f, NULL, dim, 3, use_interlacing, interlaced, PNFFT_COMPUTE_F);
       }
       PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
       
@@ -295,7 +295,7 @@ static void adjoint_B_and_F_ik_complex_input(
       PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
 
       PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
-      if( !(compute_flags & PNFFT_OMIT_DECONV) )
+      if( ~compute_flags & PNFFT_OMIT_DECONV )
         PNX(adjoint_scale_ik_diff_c2c)((C*)ths->g1, ths->local_N_start, ths->local_N, dim, ths->pnfft_flags,
             (C*)ths->g1_buffer);
       PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
@@ -318,20 +318,20 @@ static void adj(
   } else {
     /* multiplication with matrix B^T */
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
-    if( !(compute_flags & PNFFT_OMIT_CONV) )
-      PNX(adjoint_B_ad)(ths, nodes, use_interlacing, interlaced, compute_flags);
+    if( ~compute_flags & PNFFT_OMIT_CONV )
+      PNX(adjoint_B_ad)(ths, nodes, nodes->f, nodes->grad_f, 0, 1, use_interlacing, interlaced, compute_flags);
     PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
 
     /* multiplication with matrix F^H */
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
-    if( !(compute_flags & PNFFT_OMIT_FFT) )
+    if( ~compute_flags & PNFFT_OMIT_FFT )
       PNX(adjoint_F)(ths);
     PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_F]);
   }
 
   /* multiplication with matrix D */
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
-  if( !(compute_flags & PNFFT_OMIT_DECONV) )
+  if( ~compute_flags & PNFFT_OMIT_DECONV )
     PNX(adjoint_D)(ths, interlaced);
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 }
