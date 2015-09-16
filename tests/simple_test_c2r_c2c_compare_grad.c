@@ -26,26 +26,29 @@ int main(int argc, char **argv)
 
   ptrdiff_t local_N_c2c[3], local_N_start_c2c[3];
   double lower_border_c2c[3], upper_border_c2c[3];
-  pnfft_plan plan_c2c;
+  pnfft_plan pnfft_c2c;
+  pnfft_nodes nodes_c2c;
   pnfft_complex *f_hat_c2c, *f_c2c;
   double *x_c2c;
 
   ptrdiff_t local_N_c2r[3], local_N_start_c2r[3];
   double lower_border_c2r[3], upper_border_c2r[3];
-  pnfft_plan plan_c2r;
+  pnfft_plan pnfft_c2r;
+  pnfft_nodes nodes_c2r;
   pnfft_complex *f_hat_c2r;
   double *x_c2r, *f_c2r;
 
-  /* Initialize MPI and PFFT */
+  /* initialize MPI and PFFT */
   MPI_Init(&argc, &argv);
   pnfft_init();
 
+  /* set default values */
   np[0] = 2; np[1] = 2; np[2] = 2;
   // N[2] = 35 is chosen so that the data distribution is the same for c2c and c2r on the first 2 processes of np[2]
   N[0] = 4; N[1] = 4; N[2] = 4;
   local_M = N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]);
 
-   /* Print infos */
+   /* print infos */
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
   pfft_printf(MPI_COMM_WORLD, "* for  N[0] x N[1] x N[2] = %td x %td x %td Fourier coefficients)\n", N[0], N[1], N[2]);
@@ -62,52 +65,56 @@ int main(int argc, char **argv)
   }
   pnfft_create_procmesh(3, MPI_COMM_WORLD, np, &comm_cart_3d);
 
-  /* Get parameters of data distribution */
+  /* get parameters of data distribution */
   pnfft_local_size_3d(N, comm_cart_3d, PNFFT_TRANSPOSED_NONE,
       local_N_c2c, local_N_start_c2c, lower_border_c2c, upper_border_c2c);
   pnfft_local_size_3d_c2r(N, comm_cart_3d, PNFFT_TRANSPOSED_NONE,
       local_N_c2r, local_N_start_c2r, lower_border_c2r, upper_border_c2r);
 
   /* Plan parallel NFFT */
-  plan_c2c = pnfft_init_adv(3, N, local_M,
-      PNFFT_TRANSPOSED_NONE| PNFFT_WINDOW_SINC_POWER| PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| PNFFT_MALLOC_GRAD_F, PFFT_ESTIMATE,
+  pnfft_c2c = pnfft_init_adv(3, N,
+      PNFFT_TRANSPOSED_NONE | PNFFT_WINDOW_SINC_POWER | PNFFT_MALLOC_F_HAT, PFFT_ESTIMATE,
       comm_cart_3d);
-  plan_c2r = pnfft_init_adv_c2r(3, N, local_M,
-      PNFFT_TRANSPOSED_NONE| PNFFT_WINDOW_SINC_POWER| PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| PNFFT_MALLOC_GRAD_F, PFFT_ESTIMATE,
+  pnfft_c2r = pnfft_init_adv_c2r(3, N,
+      PNFFT_TRANSPOSED_NONE | PNFFT_WINDOW_SINC_POWER | PNFFT_MALLOC_F_HAT, PFFT_ESTIMATE,
       comm_cart_3d);
 
+  /* initialize nodes */
+  nodes_c2c = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F | PNFFT_MALLOC_GRAD_F);
+  nodes_c2r = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F | PNFFT_MALLOC_GRAD_F);
 
-  f_hat_c2c = pnfft_get_f_hat(plan_c2c);
-  f_c2c     = pnfft_get_f(plan_c2c);
-  x_c2c     = pnfft_get_x(plan_c2c);
-  f_hat_c2r = pnfft_get_f_hat(plan_c2r);
-  f_c2r     = pnfft_get_f_real(plan_c2r);
-  x_c2r     = pnfft_get_x(plan_c2r);
+  /* get data pointers */
+  f_hat_c2c = pnfft_get_f_hat(pnfft_c2c);
+  f_c2c     = pnfft_get_f(nodes_c2c);
+  x_c2c     = pnfft_get_x(nodes_c2c);
+  f_hat_c2r = pnfft_get_f_hat(pnfft_c2r);
+  f_c2r     = pnfft_get_f_real(nodes_c2r);
+  x_c2r     = pnfft_get_x(nodes_c2r);
 
-  /* Initialize Fourier coefficients with random numbers */
+  /* initialize Fourier coefficients with random numbers */
   init_input(N, local_N_c2c, local_N_start_c2c, f_hat_c2c);
   init_input(N, local_N_c2r, local_N_start_c2r, f_hat_c2r);
 
   pfft_apr_complex_3d(f_hat_c2c, local_N_c2c, local_N_start_c2c, "c2c output:\n", comm_cart_3d);
 
-  /* Initialize nodes with random numbers */
+  /* initialize nodes with random numbers */
   pnfft_init_x_3d(lower_border_c2c, upper_border_c2c, local_M, x_c2c);
 //  init_equispaced_x(N, lower_border_c2c, upper_border_c2c, x_c2c);
   for (int k=0; k<local_M*3; k++)
     x_c2r[k] = x_c2c[k];
 
   /* execute parallel NFFT */
-  pnfft_trafo(plan_c2c);
+  pnfft_trafo(pnfft_c2c, nodes_c2c, PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F);
   MPI_Barrier(MPI_COMM_WORLD);
-  pnfft_trafo(plan_c2r);
+  pnfft_trafo(pnfft_c2r, nodes_c2c, PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F);
   MPI_Barrier(MPI_COMM_WORLD);
 
   err = compare_complex_real(local_N_c2r, f_c2c, f_c2r, comm_cart_3d);
   pfft_printf(MPI_COMM_WORLD, "max error between c2c and c2r after trafo: %6.2e\n", err);
 
-  pnfft_adj(plan_c2c);
+  pnfft_adj(pnfft_c2c, nodes_c2c, PNFFT_COMPUTE_F);
   MPI_Barrier(MPI_COMM_WORLD);
-  pnfft_adj(plan_c2r);
+  pnfft_adj(pnfft_c2r, nodes_c2r, PNFFT_COMPUTE_F);
   MPI_Barrier(MPI_COMM_WORLD);
 
   for(ptrdiff_t l=0; l < local_N_c2c[0] * local_N_c2c[1] * local_N_c2c[2]; l++)
@@ -119,11 +126,13 @@ int main(int argc, char **argv)
   pfft_printf(MPI_COMM_WORLD, "max error between c2c and c2r after adj trafo: %6.2e\n", err);
 
   /* free mem and finalize */
-  pnfft_finalize(plan_c2c, PNFFT_FREE_X | PNFFT_FREE_F_HAT | PNFFT_FREE_F);
-  pnfft_finalize(plan_c2r, PNFFT_FREE_X | PNFFT_FREE_F_HAT | PNFFT_FREE_F);
+  pnfft_finalize(pnfft_c2c, PNFFT_FREE_F_HAT);
+  pnfft_finalize(pnfft_c2r, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes_c2c, PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_GRAD_F);
+  pnfft_free_nodes(nodes_c2r, PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_GRAD_F);
   MPI_Comm_free(&comm_cart_3d);
 
-  /* Finalize MPI */
+  /* finalize MPI */
   MPI_Finalize();
   return 0;
 }

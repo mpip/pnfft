@@ -31,6 +31,7 @@ int main(int argc, char **argv){
   pnfft_complex *f_hat, *f;
   double *x, x_max[3];
   pnfft_plan pnfft;
+  pnfft_nodes nodes;
   
   MPI_Init(&argc, &argv);
   pnfft_init();
@@ -98,14 +99,17 @@ int main(int argc, char **argv){
   local_M = local_N[0]*local_N[1]*local_N[2];
 
   /* plan parallel NFFT */
-  pnfft = pnfft_init_guru(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| window_flag, PFFT_ESTIMATE,
+  pnfft = pnfft_init_guru(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | window_flag, PFFT_ESTIMATE,
       comm_cart_3d);
+
+  /* initialize nodes */
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
 
   /* get data pointers */
   f_hat = pnfft_get_f_hat(pnfft);
-  f     = pnfft_get_f(pnfft);
-  x     = pnfft_get_x(pnfft);
+  f     = pnfft_get_f(nodes);
+  x     = pnfft_get_x(nodes);
 
   /* initialize Fourier coefficients */
   init_input_complex_3d(N, local_N, local_N_start,
@@ -121,7 +125,7 @@ int main(int argc, char **argv){
         "Input Fourier coefficients on process 1:");
 
   /* execute parallel NFFT */
-  pnfft_trafo(pnfft);
+  pnfft_trafo(pnfft, nodes, PNFFT_COMPUTE_F);
 
   /* print NFFT results */
   if(verbose)
@@ -129,7 +133,7 @@ int main(int argc, char **argv){
         "PNFFT Results on process 1:");
 
   /* execute parallel adjoint NFFT */
-  pnfft_adj(pnfft);
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_F);
 
   /* scale data */
   for(ptrdiff_t k=0; k < local_N[0] * local_N[1] * local_N[2]; k++)
@@ -151,9 +155,9 @@ int main(int argc, char **argv){
   pfft_printf(comm_cart_3d, "absolute maximum error = %6.2e\n", err);
   pfft_printf(comm_cart_3d, "relative maximum error = %6.2e\n", err/f_hat_sum);
 
-
   /* free mem and finalize */
-  pnfft_finalize(pnfft, PNFFT_FREE_X | PNFFT_FREE_F_HAT| PNFFT_FREE_F);
+  pnfft_finalize(pnfft, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_3d);
   pnfft_cleanup();
   MPI_Finalize();

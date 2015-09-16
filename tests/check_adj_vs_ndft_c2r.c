@@ -100,6 +100,7 @@ static void perform_pnfft_adj_guru(
   pnfft_complex *f_hat, *f_hat1;
   double *x, *f, f_hat_sum;
   pnfft_plan pnfft;
+  pnfft_nodes nodes;
 
   /* create three-dimensional process grid of size np[0] x np[1], if possible */
   if( pnfft_create_procmesh(2, comm, np, &comm_cart_2d) ){
@@ -120,14 +121,17 @@ static void perform_pnfft_adj_guru(
     local_N_total *= local_N[t];
 
   /* plan parallel NFFT */
-  pnfft = pnfft_init_guru_c2r(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| window_flag, PFFT_ESTIMATE,
+  pnfft = pnfft_init_guru_c2r(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | window_flag, PFFT_ESTIMATE,
       comm_cart_2d);
+
+  /* initialize nodes */
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
 
   /* get data pointers */
   f_hat = pnfft_get_f_hat(pnfft);
-  f      = pnfft_get_f_real(pnfft);
-  x      = pnfft_get_x(pnfft);
+  f      = pnfft_get_f_real(nodes);
+  x      = pnfft_get_x(nodes);
 
   /* initialize Fourier coefficients */
   srand(1);
@@ -141,7 +145,7 @@ static void perform_pnfft_adj_guru(
 
   /* execute parallel NFFT */
   time = -MPI_Wtime();
-  pnfft_adj(pnfft);
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_F);
   time += MPI_Wtime();
   
   /* print timing */
@@ -159,19 +163,20 @@ static void perform_pnfft_adj_guru(
 
   /* execute parallel NDFT */
   time = -MPI_Wtime();
-  pnfft_direct_adj(pnfft);
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_DIRECT | PNFFT_COMPUTE_F);
   time += MPI_Wtime();
 
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-  pfft_printf(comm, "pnfft_direct_adj needs %6.2e s\n", time_max);
+  pfft_printf(comm, "direct pnfft_adj needs %6.2e s\n", time_max);
 
   /* calculate error of PNFFT */
   compare_f_hat(f_hat1, f_hat, local_N_total, f_hat_sum, "* Results in", MPI_COMM_WORLD);
 
   /* free mem and finalize */
   pnfft_free(f_hat1);
-  pnfft_finalize(pnfft, PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_F_HAT);
+  pnfft_finalize(pnfft, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_2d);
 }
 

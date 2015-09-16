@@ -29,6 +29,7 @@ int main(int argc, char **argv){
   ptrdiff_t N[3], n[3], local_M;
   double x_max[3];
   
+  /* initialize MPI and PFFT */
   MPI_Init(&argc, &argv);
   pnfft_init();
   
@@ -100,6 +101,7 @@ static void pnfft_perform_guru(
   pnfft_complex *f_hat, *f, *f1;
   double *x, f_hat_sum;
   pnfft_plan pnfft;
+  pnfft_nodes nodes;
 
   /* create three-dimensional process grid of size np[0] x np[1], if possible */
   if( pnfft_create_procmesh(2, comm, np, &comm_cart_2d) ){
@@ -116,14 +118,17 @@ static void pnfft_perform_guru(
       local_N, local_N_start, lower_border, upper_border);
 
   /* plan parallel NFFT */
-  pnfft = pnfft_init_guru(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| PNFFT_TRANSPOSED_F_HAT| window_flag, PFFT_ESTIMATE,
+  pnfft = pnfft_init_guru(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | PNFFT_TRANSPOSED_F_HAT| window_flag, PFFT_ESTIMATE,
       comm_cart_2d);
+
+  /* initialize nodes */
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
 
   /* get data pointers */
   f_hat = pnfft_get_f_hat(pnfft);
-  f     = pnfft_get_f(pnfft);
-  x     = pnfft_get_x(pnfft);
+  f     = pnfft_get_f(nodes);
+  x     = pnfft_get_x(nodes);
 
   /* initialize Fourier coefficients */
   pnfft_init_f_hat_3d(N, local_N, local_N_start, PNFFT_TRANSPOSED_F_HAT,
@@ -136,7 +141,7 @@ static void pnfft_perform_guru(
 
   /* execute parallel NFFT */
   time = -MPI_Wtime();
-  pnfft_trafo(pnfft);
+  pnfft_trafo(pnfft, nodes, PNFFT_COMPUTE_F);
   time += MPI_Wtime();
 
   /* print timing */
@@ -154,19 +159,20 @@ static void pnfft_perform_guru(
 
   /* execute parallel NDFT */
   time = -MPI_Wtime();
-  pnfft_direct_trafo(pnfft);
+  pnfft_trafo(pnfft, nodes, PNFFT_COMPUTE_DIRECT | PNFFT_COMPUTE_F);
   time += MPI_Wtime();
 
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-  pfft_printf(comm, "pnfft_direct_trafo needs %6.2e s\n", time_max);
+  pfft_printf(comm, "direct pnfft_trafo needs %6.2e s\n", time_max);
 
   /* calculate error of PNFFT */
   compare_f(f1, f, local_M, f_hat_sum, "* Results in", MPI_COMM_WORLD);
 
   /* free mem and finalize, do not free nfft.f */
   pnfft_free(f1);
-  pnfft_finalize(pnfft, PNFFT_FREE_X | PNFFT_FREE_F_HAT | PNFFT_FREE_F);
+  pnfft_finalize(pnfft, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_2d);
 }
 

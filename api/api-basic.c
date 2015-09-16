@@ -71,7 +71,7 @@ PNX(plan) PNX(init_3d)(
   const int d=3;
   unsigned pnfft_flags, pfft_flags;
 
-  pnfft_flags = PNFFT_MALLOC_X | PNFFT_MALLOC_F_HAT | PNFFT_MALLOC_F;
+  pnfft_flags = PNFFT_MALLOC_F_HAT;
   pfft_flags = PFFT_MEASURE| PFFT_DESTROY_INPUT;
 
   return PNX(init_adv)(
@@ -88,7 +88,7 @@ PNX(plan) PNX(init_3d_c2r)(
   const int d=3;
   unsigned pnfft_flags, pfft_flags;
 
-  pnfft_flags = PNFFT_MALLOC_X | PNFFT_MALLOC_F_HAT | PNFFT_MALLOC_F;
+  pnfft_flags = PNFFT_MALLOC_F_HAT;
   pfft_flags = PFFT_MEASURE| PFFT_DESTROY_INPUT;
 
   return PNX(init_adv_c2r)(

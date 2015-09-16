@@ -65,7 +65,7 @@ int main(int argc, char **argv){
     case 1: intpol_flag = PNFFT_PRE_LIN_PSI; break;
     case 2: intpol_flag = PNFFT_PRE_QUAD_PSI; break;
     case 3: intpol_flag = PNFFT_PRE_CUB_PSI; break;
-    default: intpol_flag = (window==0) ? PNFFT_FG_PSI : 0;
+    default: intpol_flag = (window==0) ? PNFFT_FAST_GAUSSIAN : 0;
   }
 
   unsigned interlacing_flag = (interlacing) ? PNFFT_INTERLACED : 0;
@@ -92,7 +92,7 @@ int main(int argc, char **argv){
     case 2: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_QUAD_PSI) "); break;
     case 3: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CUB_PSI) "); break;
     default: if(window==0)
-               pfft_printf(MPI_COMM_WORLD, "(PNFFT_FG_PSI) ");
+               pfft_printf(MPI_COMM_WORLD, "(PNFFT_FAST_GAUSSIAN) ");
              else
                pfft_printf(MPI_COMM_WORLD, "(No interpolation enabled) ");
   }
@@ -129,6 +129,7 @@ static void perform_pnfft_adj_guru(
   pnfft_complex *f, *f_hat, *f_hat1;
   double *x, f_hat_sum;
   pnfft_plan pnfft;
+  pnfft_nodes nodes;
 
   /* create three-dimensional process grid of size np[0] x np[1] x np[2], if possible */
   if( pnfft_create_procmesh(3, comm, np, &comm_cart_3d) ){
@@ -149,15 +150,18 @@ static void perform_pnfft_adj_guru(
     local_N_total *= local_N[t];
 
   /* plan parallel NFFT */
-  pnfft = pnfft_init_guru(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| pnfft_flags, PFFT_ESTIMATE,
+  pnfft = pnfft_init_guru(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | pnfft_flags, PFFT_ESTIMATE,
       comm_cart_3d);
+
+  /* initialize nodes */
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_GRAD_F);
 
   /* get data pointers */
   f_hat  = pnfft_get_f_hat(pnfft);
-  f      = pnfft_get_f(pnfft);
-  grad_f = pnfft_get_grad_f(pnfft);
-  x      = pnfft_get_x(pnfft);
+  f      = pnfft_get_f(nodes);
+  grad_f = pnfft_get_grad_f(nodes);
+  x      = pnfft_get_x(nodes);
 
   /* initialize function values */
   srand(1);
@@ -176,7 +180,7 @@ static void perform_pnfft_adj_guru(
 
   /* execute parallel NFFT */
   time = -MPI_Wtime();
-  pnfft_adj(pnfft);
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_GRAD_F);
   time += MPI_Wtime();
   
   /* print timing */
@@ -194,19 +198,20 @@ static void perform_pnfft_adj_guru(
 
   /* execute parallel NDFT */
   time = -MPI_Wtime();
-  pnfft_direct_adj(pnfft);
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_DIRECT | PNFFT_COMPUTE_GRAD_F);
   time += MPI_Wtime();
 
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-  pfft_printf(comm, "pnfft_direct_adj needs %6.2e s\n", time_max);
+  pfft_printf(comm, "direct pnfft_adj needs %6.2e s\n", time_max);
 
   /* calculate error of PNFFT */
   compare_f_hat(f_hat1, f_hat, local_N_total, f_hat_sum, "* Results in", MPI_COMM_WORLD);
 
   /* free mem and finalize */
   pnfft_free(f_hat1);
-  pnfft_finalize(pnfft, PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_F_HAT);
+  pnfft_finalize(pnfft, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_3d);
 }
 

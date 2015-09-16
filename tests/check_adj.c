@@ -105,6 +105,7 @@ static void perform_pnfft_adj_guru(
   pnfft_complex *f;
   double *x;
   pnfft_plan pnfft;
+  pnfft_nodes nodes;
 
   /* create three-dimensional process grid of size np[0] x np[1] x np[2], if possible */
   if( pnfft_create_procmesh(3, comm, np, &comm_cart_3d) ){
@@ -123,14 +124,17 @@ static void perform_pnfft_adj_guru(
     *local_N_total *= local_N[t];
 
   /* plan parallel NFFT */
-  pnfft = pnfft_init_guru(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| window_flag, PFFT_ESTIMATE,
+  pnfft = pnfft_init_guru(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | window_flag, PFFT_ESTIMATE,
       comm_cart_3d);
+
+  /* initialize nodes */
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
 
   /* get data pointers */
   *f_hat = pnfft_get_f_hat(pnfft);
-  f      = pnfft_get_f(pnfft);
-  x      = pnfft_get_x(pnfft);
+  f      = pnfft_get_f(nodes);
+  x      = pnfft_get_x(nodes);
 
   /* initialize Fourier coefficients */
   srand(1);
@@ -143,7 +147,7 @@ static void perform_pnfft_adj_guru(
 
   /* execute parallel NFFT */
   time = -MPI_Wtime();
-  pnfft_adj(pnfft);
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_F);
   time += MPI_Wtime();
   
   /* print timing */
@@ -156,7 +160,8 @@ static void perform_pnfft_adj_guru(
   MPI_Allreduce(&local_sum, f_hat_sum, 1, MPI_DOUBLE, MPI_SUM, comm_cart_3d);
 
   /* free mem and finalize, do not free nfft.f_hat */
-  pnfft_finalize(pnfft, PNFFT_FREE_X | PNFFT_FREE_F);
+  pnfft_finalize(pnfft, 0);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_3d);
 }
 

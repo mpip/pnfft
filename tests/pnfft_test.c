@@ -15,16 +15,18 @@ int main(int argc, char **argv){
   pnfft_complex *f_hat, *f;
   double *x;
   pnfft_plan pnfft;
+  pnfft_nodes nodes;
   
+  /* initialize MPI and PFFT */
   MPI_Init(&argc, &argv);
   pnfft_init();
   
-  /* Set default values */
+  /* set default values */
   N[0] = N[1] = N[2] = 16;
   np[0]=2; np[1]=2; np[2]=2;
   local_M = N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]);
   
-  /* Print infos */
+  /* print infos */
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
   pfft_printf(MPI_COMM_WORLD, "* for  N[0] x N[1] x N[2] = %td x %td x %td Fourier coefficients\n", N[0], N[1], N[2]);
@@ -40,50 +42,54 @@ int main(int argc, char **argv){
     return 1;
   }
 
-  /* Get parameters of data distribution */
+  /* get parameters of data distribution */
   pnfft_local_size_3d(N, comm_cart_3d, PNFFT_TRANSPOSED_NONE,
       local_N, local_N_start, lower_border, upper_border);
 
-  /* Plan parallel NFFT */
-  pnfft = pnfft_init_3d(N, local_M, comm_cart_3d);
+  /* plan parallel NFFT */
+  pnfft = pnfft_init_3d(N, comm_cart_3d);
 
-  /* Get data pointers */
+  /* initialize nodes */
+  nodes = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
+
+  /* get data pointers */
   f_hat = pnfft_get_f_hat(pnfft);
-  f     = pnfft_get_f(pnfft);
-  x     = pnfft_get_x(pnfft);
+  f     = pnfft_get_f(nodes);
+  x     = pnfft_get_x(nodes);
 
-  /* Initialize Fourier coefficients */
+  /* initialize Fourier coefficients */
   pnfft_init_f_hat_3d(N, local_N, local_N_start, PNFFT_TRANSPOSED_NONE,
       f_hat);
 
-  /* Initialize nonequispaced nodes */
+  /* initialize nonequispaced nodes */
   pnfft_init_x_3d(lower_border, upper_border, local_M,
       x);
 
-  /* Print input Fourier coefficents */
+  /* print input Fourier coefficents */
   vpr_complex(comm_cart_3d, 8, f_hat,
       "Input Fourier coefficients on process 1:");
 
-  /* Execute parallel NFFT */
-  pnfft_trafo(pnfft);
+  /* execute parallel NFFT */
+  pnfft_trafo(pnfft, nodes, PNFFT_COMPUTE_F);
 
-  /* Print NFFT results */
+  /* print NFFT results */
   vpr_complex(comm_cart_3d, 8, f,
       "PNFFT Results on process 1:");
 
-  /* Execute parallel adjoint NFFT */
-  pnfft_adj(pnfft);
+  /* execute parallel adjoint NFFT */
+  pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_F);
 
-  /* Scale data */
+  /* scale data */
   for(ptrdiff_t l=0; l < local_N[0] * local_N[1] * local_N[2]; l++)
     f_hat[l] /= (N[0]*N[1]*N[2]);
 
-  /* Print output Fourier coefficents */
+  /* print output Fourier coefficents */
   vpr_complex(comm_cart_3d, 8, f_hat,
       "Fourier coefficients after one forward and backward PNFFT on process 1:");
 
   /* free mem and finalize */
-  pnfft_finalize(pnfft, PNFFT_FREE_X | PNFFT_FREE_F_HAT| PNFFT_FREE_F);
+  pnfft_finalize(pnfft, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_3d);
   pnfft_cleanup();
   MPI_Finalize();

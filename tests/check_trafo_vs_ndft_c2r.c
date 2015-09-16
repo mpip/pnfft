@@ -25,6 +25,7 @@ int main(int argc, char **argv){
   ptrdiff_t N[3], n[3], local_M;
   double x_max[3];
   
+  /* initialize MPI and PFFT */
   MPI_Init(&argc, &argv);
   pnfft_init();
   
@@ -94,13 +95,15 @@ static void pnfft_perform_guru(
 
   ptrdiff_t local_N_c2c[3], local_N_start_c2c[3];
   double lower_border_c2c[3], upper_border_c2c[3];
-  pnfft_plan plan_c2c;
+  pnfft_plan pnfft_c2c;
+  pnfft_nodes nodes_c2c;
   pnfft_complex *f_hat_c2c, *f_c2c;
   double *x_c2c;
 
   ptrdiff_t local_N_c2r[3], local_N_start_c2r[3];
   double lower_border_c2r[3], upper_border_c2r[3];
-  pnfft_plan plan_c2r;
+  pnfft_plan pnfft_c2r;
+  pnfft_nodes nodes_c2r;
   pnfft_complex *f_hat_c2r;
   double *x_c2r, *f_c2r;
 
@@ -121,55 +124,61 @@ static void pnfft_perform_guru(
       local_N_c2r, local_N_start_c2r, lower_border_c2r, upper_border_c2r);
 
   /* plan parallel NFFT */
-  plan_c2c = pnfft_init_guru(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| window_flag, PFFT_ESTIMATE,
+  pnfft_c2c = pnfft_init_guru(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | window_flag, PFFT_ESTIMATE,
       comm_cart_2d);
-  plan_c2r = pnfft_init_guru_c2r(3, N, n, x_max, local_M, m,
-      PNFFT_MALLOC_X| PNFFT_MALLOC_F_HAT| PNFFT_MALLOC_F| window_flag, PFFT_ESTIMATE,
+  pnfft_c2r = pnfft_init_guru_c2r(3, N, n, x_max, m,
+      PNFFT_MALLOC_F_HAT | window_flag, PFFT_ESTIMATE,
       comm_cart_2d);
+
+  /* initialize nodes */
+  nodes_c2c = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
+  nodes_c2r = pnfft_init_nodes(local_M, PNFFT_MALLOC_X | PNFFT_MALLOC_F);
 
   /* get data pointers */
-  f_hat_c2c = pnfft_get_f_hat(plan_c2c);
-  f_c2c     = pnfft_get_f(plan_c2c);
-  x_c2c     = pnfft_get_x(plan_c2c);
-  f_hat_c2r = pnfft_get_f_hat(plan_c2r);
-  f_c2r     = pnfft_get_f_real(plan_c2r);
-  x_c2r     = pnfft_get_x(plan_c2r);
+  f_hat_c2c = pnfft_get_f_hat(pnfft_c2c);
+  f_c2c     = pnfft_get_f(nodes_c2c);
+  x_c2c     = pnfft_get_x(nodes_c2c);
+  f_hat_c2r = pnfft_get_f_hat(pnfft_c2r);
+  f_c2r     = pnfft_get_f_real(nodes_c2r);
+  x_c2r     = pnfft_get_x(nodes_c2r);
 
-  /* Initialize Fourier coefficients with random numbers */
+  /* initialize Fourier coefficients with random numbers */
   init_input(N, local_N_c2c, local_N_start_c2c, f_hat_c2c);
   init_input(N, local_N_c2r, local_N_start_c2r, f_hat_c2r);
 
-  /* Initialize nodes with random numbers */
+  /* initialize nodes with random numbers */
   pnfft_init_x_3d(lower_border_c2c, upper_border_c2c, local_M, x_c2c);
   for (int k=0; k<local_M*3; k++)
     x_c2r[k] = x_c2c[k];
 
   /* execute parallel NFFT */
   time = -MPI_Wtime();
-  pnfft_direct_trafo(plan_c2c);
+  pnfft_trafo(pnfft_c2c, nodes_c2c, PNFFT_COMPUTE_DIRECT | PNFFT_COMPUTE_F);
   time += MPI_Wtime();
   
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-  pfft_printf(comm, "c2c pnfft_direct_trafo needs %6.2e s\n", time_max);
+  pfft_printf(comm, "direct c2c pnfft_trafo needs %6.2e s\n", time_max);
  
   /* execute parallel NDFT */
   time = -MPI_Wtime();
-  pnfft_direct_trafo(plan_c2r);
+  pnfft_trafo(pnfft_c2r, nodes_c2r, PNFFT_COMPUTE_DIRECT | PNFFT_COMPUTE_F);
   time += MPI_Wtime();
 
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-  pfft_printf(comm, "c2r pnfft_direct_trafo needs %6.2e s\n", time_max);
+  pfft_printf(comm, "direct c2r pnfft_trafo needs %6.2e s\n", time_max);
 
   /* calculate error of PNFFT */
   double err = compare_complex_real(local_M, f_c2c, f_c2r, comm_cart_2d);
   pfft_printf(MPI_COMM_WORLD, "max error between c2c pndft and c2r pndft: %6.2e\n", err);
 
   /* free mem and finalize */
-  pnfft_finalize(plan_c2c, PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_F_HAT);
-  pnfft_finalize(plan_c2r, PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_F_HAT);
+  pnfft_finalize(pnfft_c2c, PNFFT_FREE_F_HAT);
+  pnfft_finalize(pnfft_c2r, PNFFT_FREE_F_HAT);
+  pnfft_free_nodes(nodes_c2c, PNFFT_FREE_X | PNFFT_FREE_F);
+  pnfft_free_nodes(nodes_c2r, PNFFT_FREE_X | PNFFT_FREE_F);
   MPI_Comm_free(&comm_cart_2d);
 }
 
