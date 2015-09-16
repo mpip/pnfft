@@ -162,7 +162,20 @@ static void convolution_with_general_window(
     unsigned pnfft_flags,
     const PNX(plan) window_param, int sign,
     C *out);
+static void adj_convolution_with_general_window(
+    const C *in,
+    const INT *n,
+    const INT *local_N, const INT *local_N_start,
+    unsigned pnfft_flags,
+    const PNX(plan) window_param, int sign,
+    C *out);
 static void convolution_with_pre_inv_phi_hat(
+    const C *in,
+    const INT *local_N,
+    const C *pre_inv_phi_hat,
+    unsigned pnfft_flags,
+    C *out);
+static void adj_convolution_with_pre_inv_phi_hat(
     const C *in,
     const INT *local_N,
     const C *pre_inv_phi_hat,
@@ -243,22 +256,22 @@ void PNX(adjoint_D)(
     PNX(plan) ths, int interlaced
     )
 {
-  /* use precomputed window Fourier coefficients if possible */
-  if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT){
-    convolution_with_pre_inv_phi_hat(
-        (C*)ths->g1, ths->local_N, ths->pre_inv_phi_hat_adj, ths->pnfft_flags,
-        ths->f_hat);
-  } else {
-    convolution_with_general_window(
-        (C*)ths->g1, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_BACKWARD,
-        ths->f_hat);
-  }
-
   /* interlaced NFFT needs extra modulation to revert the shift in x */
   if(interlaced)
     convolution_due_to_interlacing(
         ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, FFTW_BACKWARD,
+        (C*)ths->g1);
+
+  /* use precomputed window Fourier coefficients if possible */
+  if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT){
+    adj_convolution_with_pre_inv_phi_hat(
+        (C*)ths->g1, ths->local_N, ths->pre_inv_phi_hat_adj, ths->pnfft_flags,
         ths->f_hat);
+  } else {
+    adj_convolution_with_general_window(
+        (C*)ths->g1, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_BACKWARD,
+        ths->f_hat);
+  }
 
 #if PNFFT_ENABLE_DEBUG
   PNX(debug_sum_print)((R*)ths->f_hat, ths->local_N[0]*ths->local_N[1]*ths->local_N[2], 1,
@@ -342,6 +355,45 @@ static void convolution_with_general_window(
   }
 }
 
+static void adj_convolution_with_general_window(
+    const C *in,
+    const INT *n,
+    const INT *local_N, const INT *local_N_start,
+    unsigned pnfft_flags,
+    const PNX(plan) window_param, int sign,
+    C *out
+    )
+{
+  INT k0, k1, k2, k=0;
+  C inv_phi_x, inv_phi_xy, inv_phi_xyz;
+
+  if(pnfft_flags & PNFFT_TRANSPOSED_F_HAT){
+    /* g_hat is transposed N1 x N2 x N0 */
+    for(k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
+      inv_phi_x = PNX(inv_phi_hat)(window_param, 1, k1);
+      for(k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++){
+        inv_phi_xy = inv_phi_x * PNX(inv_phi_hat)(window_param, 2, k2);
+        for(k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++, k++){
+          inv_phi_xyz = inv_phi_xy * PNX(inv_phi_hat)(window_param, 0, k0);
+          out[k] += in[k] * inv_phi_xyz;
+        }
+      }
+    }
+  } else {
+    /* g_hat is non-transposed N0 x N1 x N2 */
+    for(k0=local_N_start[0]; k0<local_N_start[0] + local_N[0]; k0++){
+      inv_phi_x = PNX(inv_phi_hat)(window_param, 0, k0);
+      for(k1=local_N_start[1]; k1<local_N_start[1] + local_N[1]; k1++){
+        inv_phi_xy = inv_phi_x * PNX(inv_phi_hat)(window_param, 1, k1);
+        for(k2=local_N_start[2]; k2<local_N_start[2] + local_N[2]; k2++, k++){
+          inv_phi_xyz = inv_phi_xy * PNX(inv_phi_hat)(window_param, 2, k2);
+          out[k] += in[k] * inv_phi_xyz;
+        }
+      }
+    }
+  }
+}
+
 static void convolution_with_pre_inv_phi_hat(
     const C *in,
     const INT *local_N,
@@ -367,6 +419,34 @@ static void convolution_with_pre_inv_phi_hat(
       for(k1=0; k1<local_N[1]; k1++)
         for(k2=0; k2<local_N[2]; k2++, k++)
           out[k] = in[k] * inv_phi_hat0[k0] * inv_phi_hat1[k1] * inv_phi_hat2[k2];
+  }
+}
+
+static void adj_convolution_with_pre_inv_phi_hat(
+    const C *in,
+    const INT *local_N,
+    const C *pre_inv_phi_hat,
+    unsigned pnfft_flags,
+    C *out
+    )
+{
+  INT k0, k1, k2, k=0;
+  const C *inv_phi_hat0 = pre_inv_phi_hat;
+  const C *inv_phi_hat1 = inv_phi_hat0 + local_N[0];
+  const C *inv_phi_hat2 = inv_phi_hat1 + local_N[1];
+
+  if(pnfft_flags & PNFFT_TRANSPOSED_F_HAT){
+    /* g_hat is transposed N1 x N2 x N0 */
+    for(k1=0; k1<local_N[1]; k1++)
+      for(k2=0; k2<local_N[2]; k2++)
+        for(k0=0; k0<local_N[0]; k0++, k++)
+          out[k] += in[k] * inv_phi_hat0[k0] * inv_phi_hat1[k1] * inv_phi_hat2[k2];
+  } else {
+    /* g_hat is non-transposed N0 x N1 x N2 */
+    for(k0=0; k0<local_N[0]; k0++)
+      for(k1=0; k1<local_N[1]; k1++)
+        for(k2=0; k2<local_N[2]; k2++, k++)
+          out[k] += in[k] * inv_phi_hat0[k0] * inv_phi_hat1[k1] * inv_phi_hat2[k2];
   }
 }
 

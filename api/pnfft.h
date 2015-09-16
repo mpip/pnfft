@@ -113,7 +113,7 @@
         MPI_Comm comm_cart);                                                            \
                                                                                         \
   PNFFT_EXTERN PNX(nodes) PNX(init_nodes)(                                              \
-      INT local_M, unsigned pnfft_flags);                                               \
+      INT local_M, unsigned malloc_flags);                                              \
   PNFFT_EXTERN void PNX(free_nodes)(                                                    \
       PNX(nodes) ths, unsigned pnfft_finalize_flags);                                   \
                                                                                         \
@@ -345,14 +345,17 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 /* Flags for window precomputation */
 /***********************************/
 /* choose between tensor product based and full precomputation */
-#define PNFFT_PRE_TENSOR      (0U)
-#define PNFFT_PRE_FULL        (1U<< 0)
+#define PNFFT_PRE_TENSOR            (0U)
+#define PNFFT_PRE_FULL              (1U<< 0)
 
-#define PNFFT_PRE_PSI         (1U<< 1)
+#define PNFFT_PRE_PSI               (1U<< 1)
+#define PNFFT_PRE_GRAD_PSI_ONLY     (1U<< 2)
+#define PNFFT_PRE_HESSIAN_PSI_ONLY  (1U<< 3)
+
 /* gradient needs psi and dpsi */
-#define PNFFT_PRE_GRAD_PSI    (( (1U<< 2) | PNFFT_PRE_PSI ))
+#define PNFFT_PRE_GRAD_PSI          (( PNFFT_PRE_PSI | PNFFT_PRE_GRAD_PSI_ONLY ))
 /* Hessian needs psi, dpsi and ddpsi */
-#define PNFFT_PRE_HESSIAN_PSI (( (1U<< 3) | PNFFT_PRE_GRAD_PSI )) 
+#define PNFFT_PRE_HESSIAN_PSI       (( PNFFT_PRE_GRAD_PSI | PNFFT_PRE_HESSIAN_PSI_ONLY )) 
 
 // #define PNFFT_PRE_ONE_PSI    ((PNFFT_PRE_PSI | PNFFT_PRE_GRAD_PSI | PNFFT_PRE_HESSIAN_PSI))
 

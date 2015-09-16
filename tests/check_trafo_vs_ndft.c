@@ -103,9 +103,9 @@ int main(int argc, char **argv){
   }
   pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_intpol *),\n");
   if(interlacing)
-    pfft_printf(MPI_COMM_WORLD, "*      interlacing = enabled (disable with -pnfft_interlacing 0)");
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = enabled (disable with -pnfft_interlacing 0)\n");
   else
-    pfft_printf(MPI_COMM_WORLD, "*      interlacing = disabled (enable with -pnfft_interlacing 1)");
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = disabled (enable with -pnfft_interlacing 1)\n");
   pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
   pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
 

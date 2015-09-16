@@ -352,13 +352,13 @@ void PNX(adjoint_B_strided)(
     PNX(plan) ths, PNX(nodes) nodes, R *f, INT offset, INT stride,
     int use_interlacing, int interlaced, unsigned compute_flags);
 void PNX(malloc_x)(
-    PNX(nodes) nodes, unsigned pnfft_flags);
+    PNX(nodes) nodes, unsigned malloc_flags);
 void PNX(malloc_f)(
-    PNX(nodes) nodes, unsigned pnfft_flags);
+    PNX(nodes) nodes, unsigned malloc_flags);
 void PNX(malloc_grad_f)(
-    PNX(nodes) nodes, unsigned pnfft_flags);
+    PNX(nodes) nodes, unsigned malloc_flags);
 void PNX(malloc_hessian_f)(
-    PNX(nodes) nodes, unsigned pnfft_flags);
+    PNX(nodes) nodes, unsigned malloc_flags);
 void PNX(node_borders)(
     const INT *n,
     const INT *local_no, const INT *local_no_start,

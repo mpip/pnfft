@@ -359,7 +359,7 @@ void PNX(adj)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
-  if( !(compute_flags & PNFFT_COMPUTE_ACCUMULATED) )
+  if( ~compute_flags & PNFFT_COMPUTE_ACCUMULATED )
     for(INT m=0; m<ths->local_N_total; m++)
       ths->f_hat[m] = 0;
 
@@ -399,18 +399,19 @@ static PNX(nodes) mknodes(
 }
 
 PNX(nodes) PNX(init_nodes)(
-    INT local_M, unsigned pnfft_flags
+    INT local_M, unsigned malloc_flags
     )
 {
   PNX(nodes) nodes = mknodes();
 
   nodes->local_M = local_M;
+  nodes->precompute_flags = 0;
 
   /* allocate mem */
-  PNX(malloc_x)(nodes, pnfft_flags);
-  PNX(malloc_f)(nodes, pnfft_flags);
-  PNX(malloc_grad_f)(nodes, pnfft_flags);
-  PNX(malloc_hessian_f)(nodes, pnfft_flags);
+  PNX(malloc_x)(nodes, malloc_flags);
+  PNX(malloc_f)(nodes, malloc_flags);
+  PNX(malloc_grad_f)(nodes, malloc_flags);
+  PNX(malloc_hessian_f)(nodes, malloc_flags);
 
   return nodes;
 }

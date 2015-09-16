@@ -138,17 +138,17 @@ void PNX(spread_f_c2c)(
 {
   R* plan_pre_psi = (interlaced) ? nodes->pre_psi_il : nodes->pre_psi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
+    spread_f_c2c_pre_psi(
+        f, pre_psi, m0, grid_size, cutoff, use_interlacing,
+        grid);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     spread_f_c2c_pre_full_psi(
         f, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, use_interlacing, 
         grid);
-  else if(nodes->precompute_flags & PNFFT_PRE_PSI)
-    spread_f_c2c_pre_psi(
-        f, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, use_interlacing, 
-        grid);
   else
     spread_f_c2c_pre_psi(
-        f, pre_psi, m0, grid_size, cutoff, use_interlacing,
+        f, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, use_interlacing, 
         grid);
 }
 
@@ -162,17 +162,17 @@ void PNX(spread_f_r2r)(
 {
   R* plan_pre_psi = (interlaced) ? nodes->pre_psi_il : nodes->pre_psi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
+    spread_f_r2r_pre_psi(
+        f, pre_psi, m0, grid_size, cutoff, ostride, use_interlacing,
+        grid);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     spread_f_r2r_pre_full_psi(
         f, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, ostride, use_interlacing,
         grid);
-  else if(nodes->precompute_flags & PNFFT_PRE_PSI)
-    spread_f_r2r_pre_psi(
-        f, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, ostride, use_interlacing,
-        grid);
   else
     spread_f_r2r_pre_psi(
-        f, pre_psi, m0, grid_size, cutoff, ostride, use_interlacing,
+        f, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, ostride, use_interlacing,
         grid);
 }
 
@@ -187,19 +187,19 @@ void PNX(spread_grad_f_c2c)(
   R* plan_pre_psi  = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
   R* plan_pre_dpsi = (interlaced) ? nodes->pre_dpsi_il : nodes->pre_dpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_GRAD_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI_ONLY )
+    spread_grad_f_c2c_pre_psi(
+        grad_f, pre_psi, pre_dpsi, m0, grid_size, cutoff, use_interlacing, 
+        grid);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     spread_grad_f_c2c_pre_full_psi(
         grad_f, plan_pre_dpsi + ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing, 
         grid);
-  else if(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI)
+  else
     spread_grad_f_c2c_pre_psi(
         grad_f, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff, 
         m0, grid_size, cutoff, use_interlacing, 
-        grid);
-  else
-    spread_grad_f_c2c_pre_psi(
-        grad_f, pre_psi, pre_dpsi, m0, grid_size, cutoff, use_interlacing, 
         grid);
 }
 
@@ -215,19 +215,19 @@ void PNX(spread_grad_f_r2r)(
   R* plan_pre_psi  = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
   R* plan_pre_dpsi = (interlaced) ? nodes->pre_dpsi_il : nodes->pre_dpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_GRAD_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI_ONLY )
+    spread_grad_f_r2r_pre_psi(
+        grad_f, pre_psi, pre_dpsi,
+        m0, grid_size, cutoff, use_interlacing, istride, ostride,
+        grid);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     spread_grad_f_r2r_pre_full_psi(
         grad_f, plan_pre_dpsi + ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing, istride, ostride, 
         grid);
-  else if(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI)
-    spread_grad_f_r2r_pre_psi(
-        grad_f, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff, 
-        m0, grid_size, cutoff, use_interlacing, istride, ostride,
-        grid);
   else
     spread_grad_f_r2r_pre_psi(
-        grad_f, pre_psi, pre_dpsi,
+        grad_f, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff, 
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         grid);
 }
@@ -242,17 +242,17 @@ void PNX(assign_f_c2c)(
 {
   R* plan_pre_psi = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
+    assign_f_c2c_pre_psi(
+        grid, pre_psi, m0, grid_size, cutoff, use_interlacing,
+        f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_f_c2c_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, use_interlacing,
         f);
-  else if(nodes->precompute_flags & PNFFT_PRE_PSI)
-    assign_f_c2c_pre_psi(
-        grid, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, use_interlacing,
-        f);
   else
     assign_f_c2c_pre_psi(
-        grid, pre_psi, m0, grid_size, cutoff, use_interlacing,
+        grid, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, use_interlacing,
         f);
 }
 
@@ -266,17 +266,17 @@ void PNX(assign_f_r2r)(
 { 
   R* plan_pre_psi = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
+    assign_f_r2r_pre_psi(
+        grid, pre_psi, m0, grid_size, cutoff, use_interlacing, istride,
+        f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_f_r2r_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), m0, grid_size, cutoff, use_interlacing, istride,
         f);
-  else if(nodes->precompute_flags & PNFFT_PRE_PSI)
-    assign_f_r2r_pre_psi(
-        grid, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, use_interlacing, istride,
-        f);
   else
     assign_f_r2r_pre_psi(
-        grid, pre_psi, m0, grid_size, cutoff, use_interlacing, istride,
+        grid, plan_pre_psi + ind*3*cutoff, m0, grid_size, cutoff, use_interlacing, istride,
         f);
 }
 
@@ -291,19 +291,19 @@ void PNX(assign_grad_f_c2c)(
   R* plan_pre_psi  = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
   R* plan_pre_dpsi = (interlaced) ? nodes->pre_dpsi_il : nodes->pre_dpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_GRAD_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI_ONLY )
+    assign_grad_f_c2c_pre_psi(
+        grid, pre_psi, pre_dpsi,
+        m0, grid_size, cutoff, use_interlacing,
+        grad_f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_grad_f_c2c_pre_full_psi(
         grid, plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing,
         grad_f);
-  else if(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI)
-    assign_grad_f_c2c_pre_psi(
-        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
-        m0, grid_size, cutoff, use_interlacing,
-        grad_f);
   else
     assign_grad_f_c2c_pre_psi(
-        grid, pre_psi, pre_dpsi,
+        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff, use_interlacing,
         grad_f);
 }
@@ -320,19 +320,19 @@ void PNX(assign_grad_f_r2r)(
   R* plan_pre_psi  = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
   R* plan_pre_dpsi = (interlaced) ? nodes->pre_dpsi_il : nodes->pre_dpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_GRAD_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI_ONLY )
+    assign_grad_f_r2r_pre_psi(
+        grid, pre_psi, pre_dpsi,
+        m0, grid_size, cutoff, use_interlacing, istride, ostride,
+        grad_f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_grad_f_r2r_pre_full_psi(
         grid, plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         grad_f);
-  else if(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI)
-    assign_grad_f_r2r_pre_psi(
-        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
-        m0, grid_size, cutoff, use_interlacing, istride, ostride,
-        grad_f);
   else
     assign_grad_f_r2r_pre_psi(
-        grid, pre_psi, pre_dpsi,
+        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         grad_f);
 }
@@ -349,7 +349,12 @@ void PNX(assign_hessian_f_c2c)(
   R* plan_pre_dpsi  = (interlaced) ? nodes->pre_dpsi_il  : nodes->pre_dpsi;
   R* plan_pre_ddpsi = (interlaced) ? nodes->pre_ddpsi_il : nodes->pre_ddpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_HESSIAN_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI_ONLY )
+    assign_hessian_f_c2c_pre_psi(
+        grid, pre_psi, pre_dpsi, pre_ddpsi,
+        m0, grid_size, cutoff, use_interlacing,
+        hessian_f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_hessian_f_c2c_pre_full_psi(
         grid,
         plan_pre_psi + ind*PNFFT_POW3(cutoff),
@@ -357,17 +362,12 @@ void PNX(assign_hessian_f_c2c)(
         plan_pre_ddpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing,
         hessian_f);
-  else if(nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI)
+  else
     assign_hessian_f_c2c_pre_psi(
         grid, 
         plan_pre_psi + ind*3*cutoff,
         plan_pre_dpsi + ind*3*cutoff,
         plan_pre_ddpsi + ind*3*cutoff,
-        m0, grid_size, cutoff, use_interlacing,
-        hessian_f);
-  else
-    assign_hessian_f_c2c_pre_psi(
-        grid, pre_psi, pre_dpsi, pre_ddpsi,
         m0, grid_size, cutoff, use_interlacing,
         hessian_f);
 }
@@ -385,7 +385,12 @@ void PNX(assign_hessian_f_r2r)(
   R* plan_pre_dpsi  = (interlaced) ? nodes->pre_dpsi_il  : nodes->pre_dpsi;
   R* plan_pre_ddpsi = (interlaced) ? nodes->pre_ddpsi_il : nodes->pre_ddpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_HESSIAN_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI_ONLY )
+    assign_hessian_f_r2r_pre_psi(
+        grid, pre_psi, pre_dpsi, pre_ddpsi,
+        m0, grid_size, cutoff, use_interlacing, istride, ostride,
+        hessian_f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_hessian_f_r2r_pre_full_psi(
         grid,
         plan_pre_psi + ind*PNFFT_POW3(cutoff),
@@ -393,17 +398,12 @@ void PNX(assign_hessian_f_r2r)(
         plan_pre_ddpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         hessian_f);
-  else if(nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI)
+  else
     assign_hessian_f_r2r_pre_psi(
         grid, 
         plan_pre_psi + ind*3*cutoff, 
         plan_pre_dpsi + ind*3*cutoff,
         plan_pre_ddpsi + ind*3*cutoff,
-        m0, grid_size, cutoff, use_interlacing, istride, ostride,
-        hessian_f);
-  else
-    assign_hessian_f_r2r_pre_psi(
-        grid, pre_psi, pre_dpsi, pre_ddpsi,
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         hessian_f);
 }
@@ -422,19 +422,19 @@ void PNX(assign_f_and_grad_f_c2c)(
   R* plan_pre_psi  = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
   R* plan_pre_dpsi = (interlaced) ? nodes->pre_dpsi_il : nodes->pre_dpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_GRAD_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI_ONLY )
+    assign_f_and_grad_f_c2c_pre_psi(
+        grid, pre_psi, pre_dpsi,
+        m0, grid_size, cutoff, use_interlacing,
+        f, grad_f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_f_and_grad_f_c2c_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing,
         f, grad_f);
-  else if(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI)
-    assign_f_and_grad_f_c2c_pre_psi(
-        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
-        m0, grid_size, cutoff, use_interlacing,
-        f, grad_f);
   else
     assign_f_and_grad_f_c2c_pre_psi(
-        grid, pre_psi, pre_dpsi,
+        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff, use_interlacing,
         f, grad_f);
 }
@@ -451,19 +451,19 @@ void PNX(assign_f_and_grad_f_r2r)(
   R* plan_pre_psi  = (interlaced) ? nodes->pre_psi_il  : nodes->pre_psi;
   R* plan_pre_dpsi = (interlaced) ? nodes->pre_dpsi_il : nodes->pre_dpsi;
 
-  if(nodes->precompute_flags & (PNFFT_PRE_FULL | PNFFT_PRE_GRAD_PSI))
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI_ONLY )
+    assign_f_and_grad_f_r2r_pre_psi(
+        grid, pre_psi, pre_dpsi,
+        m0, grid_size, cutoff, use_interlacing, istride, ostride,
+        f, grad_f);
+  else if (nodes->precompute_flags & PNFFT_PRE_FULL)
     assign_f_and_grad_f_r2r_pre_full_psi(
         grid, plan_pre_psi + ind*PNFFT_POW3(cutoff), plan_pre_dpsi + 3*ind*PNFFT_POW3(cutoff),
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         f, grad_f);
-  else if(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI)
-    assign_f_and_grad_f_r2r_pre_psi(
-        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
-        m0, grid_size, cutoff, use_interlacing, istride, ostride,
-        f, grad_f);
   else
     assign_f_and_grad_f_r2r_pre_psi(
-        grid, pre_psi, pre_dpsi,
+        grid, plan_pre_psi + ind*3*cutoff, plan_pre_dpsi + ind*3*cutoff,
         m0, grid_size, cutoff, use_interlacing, istride, ostride,
         f, grad_f);
 }
