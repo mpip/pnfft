@@ -43,6 +43,7 @@ check_PROGRAMS += \
 	check_trafo_grad check_trafo_transposed_grad \
 	check_trafo_2d check_trafo_transposed_2d \
 	check_adj check_adj_transposed \
+	check_adj_grad_vs_ndft \
 	check_vs_pfft \
 	pnfft_test \
 	pnfft_test_adv \

@@ -155,27 +155,27 @@ static void convolution_due_to_interlacing(
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags, int sign,
     C *inout);
-static void convolution_with_general_window(
+static void convolution_with_general_window_overwrite(
     const C *in,
     const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
     const PNX(plan) window_param, int sign,
     C *out);
-static void adj_convolution_with_general_window(
+static void convolution_with_general_window_accumulate(
     const C *in,
     const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
     const PNX(plan) window_param, int sign,
     C *out);
-static void convolution_with_pre_inv_phi_hat(
+static void convolution_with_pre_inv_phi_hat_overwrite(
     const C *in,
     const INT *local_N,
     const C *pre_inv_phi_hat,
     unsigned pnfft_flags,
     C *out);
-static void adj_convolution_with_pre_inv_phi_hat(
+static void convolution_with_pre_inv_phi_hat_accumulate(
     const C *in,
     const INT *local_N,
     const C *pre_inv_phi_hat,
@@ -235,11 +235,11 @@ void PNX(trafo_D)(
 
   /* use precomputed window Fourier coefficients if possible */
   if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT){
-    convolution_with_pre_inv_phi_hat(
+    convolution_with_pre_inv_phi_hat_overwrite(
         ths->f_hat, ths->local_N, ths->pre_inv_phi_hat_trafo, ths->pnfft_flags,
         (C*)ths->g1);
   } else {
-    convolution_with_general_window(
+    convolution_with_general_window_overwrite(
         ths->f_hat, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_FORWARD,
         (C*)ths->g1);
   }
@@ -264,11 +264,11 @@ void PNX(adjoint_D)(
 
   /* use precomputed window Fourier coefficients if possible */
   if(ths->pnfft_flags & PNFFT_PRE_PHI_HAT){
-    adj_convolution_with_pre_inv_phi_hat(
+    convolution_with_pre_inv_phi_hat_accumulate(
         (C*)ths->g1, ths->local_N, ths->pre_inv_phi_hat_adj, ths->pnfft_flags,
         ths->f_hat);
   } else {
-    adj_convolution_with_general_window(
+    convolution_with_general_window_accumulate(
         (C*)ths->g1, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_BACKWARD,
         ths->f_hat);
   }
@@ -316,7 +316,7 @@ static void convolution_due_to_interlacing(
   }
 }
 
-static void convolution_with_general_window(
+static void convolution_with_general_window_overwrite(
     const C *in,
     const INT *n,
     const INT *local_N, const INT *local_N_start,
@@ -355,7 +355,7 @@ static void convolution_with_general_window(
   }
 }
 
-static void adj_convolution_with_general_window(
+static void convolution_with_general_window_accumulate(
     const C *in,
     const INT *n,
     const INT *local_N, const INT *local_N_start,
@@ -394,7 +394,7 @@ static void adj_convolution_with_general_window(
   }
 }
 
-static void convolution_with_pre_inv_phi_hat(
+static void convolution_with_pre_inv_phi_hat_overwrite(
     const C *in,
     const INT *local_N,
     const C *pre_inv_phi_hat,
@@ -422,7 +422,7 @@ static void convolution_with_pre_inv_phi_hat(
   }
 }
 
-static void adj_convolution_with_pre_inv_phi_hat(
+static void convolution_with_pre_inv_phi_hat_accumulate(
     const C *in,
     const INT *local_N,
     const C *pre_inv_phi_hat,

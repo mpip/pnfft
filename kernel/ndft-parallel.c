@@ -1081,7 +1081,7 @@ void PNX(init_precompute_window)(
           ths->intpol_tables_psi[t]);
     }
 
-    if( !(ths->pnfft_flags & PNFFT_DIFF_IK) ){
+    if( ~ths->pnfft_flags & PNFFT_DIFF_IK ){
       if(ths->intpol_tables_dpsi == NULL)
         ths->intpol_tables_dpsi = (R**) PNX(malloc)(sizeof(R*) * (size_t) ths->d);
       for(int t=0; t<ths->d; t++){
@@ -1150,7 +1150,7 @@ void PNX(precompute_psi)(
 
   nodes->precompute_flags = precompute_flags;
 
-  if( !(precompute_flags & PNFFT_PRE_PSI) )
+  if( ~precompute_flags & PNFFT_PRE_PSI )
     return;
 
   /* allocate memory */
@@ -2497,7 +2497,7 @@ void PNX(trafo_B_strided)(
   }
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
-  if( !(nodes->precompute_flags & PNFFT_PRE_PSI) )
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   for(INT p=0; p<nodes->local_M; p++){
     j = (ths->pnfft_flags & PNFFT_SORT_NODES) ? sorted_index[2*p+1] : p;
@@ -2526,7 +2526,7 @@ void PNX(trafo_B_strided)(
     }
 
     /* evaluate window on axes */
-    if( !(nodes->precompute_flags & PNFFT_PRE_PSI) )
+    if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
       pre_psi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
@@ -2854,12 +2854,12 @@ static void loop_over_particles_trafo(
   R rsum=0.0, rsum_derive=0.0, grsum, grsum_derive;
 #endif
 
-  if( !(nodes->precompute_flags & PNFFT_PRE_PSI) )
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-  if( !(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI) )
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI )
     if(compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F))
       pre_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
-  if( !(nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI) )
+  if( ~nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI )
     if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
       pre_ddpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   
@@ -2890,7 +2890,7 @@ static void loop_over_particles_trafo(
     }
 
     /* evaluate window on axes */
-    if( !(nodes->precompute_flags & PNFFT_PRE_PSI) ){
+    if( ~nodes->precompute_flags & PNFFT_PRE_PSI ){
       pre_psi_tensor(
           ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
@@ -2904,7 +2904,7 @@ static void loop_over_particles_trafo(
 #endif
     }
  
-    if( !(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI) ){
+    if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI ){
       if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) )
         pre_dpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
@@ -2920,7 +2920,7 @@ static void loop_over_particles_trafo(
 #endif
     }
 
-    if( !(nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI) )
+    if( ~nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI )
       if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
         pre_ddpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
@@ -3031,8 +3031,12 @@ static void loop_over_particles_adj(
   R rsum = 0.0, grsum;
 #endif
 
-  if( !(nodes->precompute_flags & PNFFT_PRE_PSI) )
+  if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
+  if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI )
+    if(compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F))
+      pre_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
+
   for(INT p=0; p<nodes->local_M; p++){
     j = (sorted_index) ? sorted_index[2*p+1] : p;
 
@@ -3060,7 +3064,7 @@ static void loop_over_particles_adj(
     }
 
     /* evaluate window on axes */
-    if( !(nodes->precompute_flags & PNFFT_PRE_PSI) ){
+    if( ~nodes->precompute_flags & PNFFT_PRE_PSI ){
       pre_psi_tensor(
           ths->n, ths->b, ths->m, cutoff, x, floor_nx_j,
           ths->exp_const, ths->spline_coeffs, ths->pnfft_flags,
@@ -3074,7 +3078,7 @@ static void loop_over_particles_adj(
 #endif
     }
 
-    if( !(nodes->precompute_flags & PNFFT_PRE_GRAD_PSI) ){
+    if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI ){
       if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) )
         pre_dpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
@@ -3124,7 +3128,7 @@ static void loop_over_particles_adj(
   PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT^H: Sum of pre_psi: %e\n", grsum);
 #endif
 
-  if(pre_psi != NULL) PNX(free)(pre_psi);
+  if(pre_psi != NULL)   PNX(free)(pre_psi);
   if(pre_dpsi != NULL)  PNX(free)(pre_dpsi);
 }
 

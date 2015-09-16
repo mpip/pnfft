@@ -111,7 +111,7 @@ int main(int argc, char **argv){
 
 
   /* calculate parallel NFFT */
-  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag, np, MPI_COMM_WORLD);
+  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag | intpol_flag | interlacing_flag, np, MPI_COMM_WORLD);
 
   /* free mem and finalize */
   pnfft_cleanup();

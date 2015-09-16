@@ -119,7 +119,7 @@ int main(int argc, char **argv){
 //  window_flag |= PNFFT_PRE_CUB_PSI;
 
   /* calculate parallel NFFT */
-  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag| intpol_flag| interlacing_flag| diff_ik_flag, np, MPI_COMM_WORLD, debug);
+  pnfft_perform_guru(N, n, local_M, m,   x_max, window_flag | intpol_flag | interlacing_flag | diff_ik_flag, np, MPI_COMM_WORLD, debug);
 
   /* free mem and finalize */
   pnfft_cleanup();

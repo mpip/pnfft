@@ -147,6 +147,13 @@ static PNX(plan) PNX(init_guru_internal)(
   pnfft_flags |= PNFFT_WINDOW_SINC_POWER;
 #endif
 
+  /* Hessian precomputation depends on grad and function values,
+   * grad precomputation depends on function values */
+  if(pnfft_flags & PNFFT_PRE_HESSIAN_PSI)
+    pnfft_flags |= PNFFT_PRE_GRAD_PSI;
+  if(pnfft_flags & PNFFT_PRE_GRAD_PSI)
+    pnfft_flags |= PNFFT_PRE_PSI;
+
   ths = PNX(init_internal)(d, N, n, no, m, trafo_flag, pnfft_flags, pfft_opt_flags, comm_cart);
 
   /* Quick fix to save x_max in PNFFT plan */

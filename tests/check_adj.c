@@ -11,7 +11,7 @@ static void perform_pnfft_adj_guru(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *local_M,
-    int *m, int *window,
+    int *m, int *window, int *intpol, int *interlacing,
     double *x_max, int *np);
 static void compare_f_hat(
     const pnfft_complex *f_hat_pnfft, const pnfft_complex *f_hat_nfft, ptrdiff_t local_N_total,
@@ -19,8 +19,7 @@ static void compare_f_hat(
 
 
 int main(int argc, char **argv){
-  int np[3], m, window;
-  unsigned window_flag;
+  int np[3], m, window, interlacing;
   ptrdiff_t N[3], n[3], local_M, local_N_total;
   double f_hat_sum, x_max[3];
   pnfft_complex *f_hat1, *f_hat2;
@@ -34,24 +33,40 @@ int main(int argc, char **argv){
   local_M = 0;
   m = 6;
   window = 4;
+  interlacing = 0;
   x_max[0] = x_max[1] = x_max[2] = 0.5;
   np[0]=2; np[1]=2; np[2]=2;
   
   /* set parameters by command line */
-  init_parameters(argc, argv, N, n, &local_M, &m, &window, x_max, np);
+  int intpol = -1;
+  init_parameters(argc, argv, N, n, &local_M, &m, &window, &intpol, &interlacing, x_max, np);
 
   /* if M or n are set to zero, we choose nice values */
   local_M = (local_M==0) ? N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]) : local_M;
   for(int t=0; t<3; t++)
     n[t] = (n[t]==0) ? 2*N[t] : n[t];
 
+  unsigned window_flag;
   switch(window){
     case 0: window_flag = PNFFT_WINDOW_GAUSSIAN; break;
     case 1: window_flag = PNFFT_WINDOW_BSPLINE; break;
     case 2: window_flag = PNFFT_WINDOW_SINC_POWER; break;
     case 3: window_flag = PNFFT_WINDOW_BESSEL_I0; break;
+    case 4: window_flag = PNFFT_WINDOW_KAISER_BESSEL; break;
+    case 5: window_flag = PNFFT_WINDOW_GAUSSIAN_T; break;
     default: window_flag = PNFFT_WINDOW_KAISER_BESSEL;
   }
+
+  unsigned intpol_flag;
+  switch(intpol){
+    case 0: intpol_flag = PNFFT_PRE_CONST_PSI; break;
+    case 1: intpol_flag = PNFFT_PRE_LIN_PSI; break;
+    case 2: intpol_flag = PNFFT_PRE_QUAD_PSI; break;
+    case 3: intpol_flag = PNFFT_PRE_CUB_PSI; break;
+    default: intpol_flag = (window==0) ? PNFFT_FAST_GAUSSIAN : 0;
+  }
+
+  unsigned interlacing_flag = (interlacing) ? PNFFT_INTERLACED : 0;
 
   pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
   pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
@@ -73,7 +88,7 @@ int main(int argc, char **argv){
 
 
   /* calculate parallel NFFT */
-  perform_pnfft_adj_guru(N, n, local_M, m,   x_max, window_flag, np, MPI_COMM_WORLD,
+  perform_pnfft_adj_guru(N, n, local_M, m,   x_max, window_flag | intpol_flag | interlacing_flag, np, MPI_COMM_WORLD,
       &f_hat1, &f_hat_sum, &local_N_total);
 
   /* calculate parallel NFFT with higher accuracy */
@@ -169,7 +184,7 @@ static void perform_pnfft_adj_guru(
 static void init_parameters(
     int argc, char **argv,
     ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *local_M,
-    int *m, int *window,
+    int *m, int *window, int *intpol, int *interlacing,
     double *x_max, int *np
     )
 {
@@ -179,6 +194,8 @@ static void init_parameters(
   pfft_get_args(argc, argv, "-pnfft_np", 3, PFFT_INT, np);
   pfft_get_args(argc, argv, "-pnfft_m", 1, PFFT_INT, m);
   pfft_get_args(argc, argv, "-pnfft_window", 1, PFFT_INT, window);
+  pfft_get_args(argc, argv, "-pnfft_intpol", 1, PFFT_INT, intpol);
+  pfft_get_args(argc, argv, "-pnfft_interlacing", 1, PFFT_INT, interlacing);
   pfft_get_args(argc, argv, "-pnfft_x_max", 3, PFFT_DOUBLE, x_max);
 }
 

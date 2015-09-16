@@ -126,7 +126,7 @@ static void perform_pnfft_adj_guru(
   double lower_border[3], upper_border[3];
   double local_sum = 0, time, time_max;
   MPI_Comm comm_cart_3d;
-  pnfft_complex *f, *f_hat, *f_hat1;
+  pnfft_complex *grad_f, *f_hat, *f_hat1;
   double *x, f_hat_sum;
   pnfft_plan pnfft;
   pnfft_nodes nodes;
@@ -159,14 +159,8 @@ static void perform_pnfft_adj_guru(
 
   /* get data pointers */
   f_hat  = pnfft_get_f_hat(pnfft);
-  f      = pnfft_get_f(nodes);
   grad_f = pnfft_get_grad_f(nodes);
   x      = pnfft_get_x(nodes);
-
-  /* initialize function values */
-  srand(1);
-  pnfft_init_f(local_M,
-      f);
 
   /* initialize gradients */
   srand(1);
@@ -211,7 +205,7 @@ static void perform_pnfft_adj_guru(
   /* free mem and finalize */
   pnfft_free(f_hat1);
   pnfft_finalize(pnfft, PNFFT_FREE_F_HAT);
-  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_F);
+  pnfft_free_nodes(nodes, PNFFT_FREE_X | PNFFT_FREE_GRAD_F );
   MPI_Comm_free(&comm_cart_3d);
 }
 
