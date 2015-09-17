@@ -183,6 +183,9 @@ static void perform_pnfft_adj_guru(
   pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_GRAD_F);
   time += MPI_Wtime();
   
+for(int k=0; k<8; ++k)
+  fprintf(stderr, "NFFT: f_hat[%d] = %.2e + I* %.2e\n", m, creal(f_hat[k]), cimag(f_hat[k]));
+
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
   pfft_printf(comm, "pnfft_adj needs %6.2e s\n", time_max);
@@ -200,6 +203,9 @@ static void perform_pnfft_adj_guru(
   time = -MPI_Wtime();
   pnfft_adj(pnfft, nodes, PNFFT_COMPUTE_DIRECT | PNFFT_COMPUTE_GRAD_F);
   time += MPI_Wtime();
+
+for(int k=0; k<8; ++k)
+  fprintf(stderr, "NDFT: f_hat[%d] = %.2e + I* %.2e\n", m, creal(f_hat[k]), cimag(f_hat[k]));
 
   /* print timing */
   MPI_Reduce(&time, &time_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);

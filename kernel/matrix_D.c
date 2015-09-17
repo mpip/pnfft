@@ -160,14 +160,14 @@ static void convolution_with_general_window_overwrite(
     const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
-    const PNX(plan) window_param, int sign,
+    const PNX(plan) window_param,
     C *out);
 static void convolution_with_general_window_accumulate(
     const C *in,
     const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
-    const PNX(plan) window_param, int sign,
+    const PNX(plan) window_param,
     C *out);
 static void convolution_with_pre_inv_phi_hat_overwrite(
     const C *in,
@@ -240,7 +240,7 @@ void PNX(trafo_D)(
         (C*)ths->g1);
   } else {
     convolution_with_general_window_overwrite(
-        ths->f_hat, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_FORWARD,
+        ths->f_hat, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths,
         (C*)ths->g1);
   }
 
@@ -269,7 +269,7 @@ void PNX(adjoint_D)(
         ths->f_hat);
   } else {
     convolution_with_general_window_accumulate(
-        (C*)ths->g1, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths, FFTW_BACKWARD,
+        (C*)ths->g1, ths->n, ths->local_N, ths->local_N_start, ths->pnfft_flags, ths,
         ths->f_hat);
   }
 
@@ -321,7 +321,7 @@ static void convolution_with_general_window_overwrite(
     const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
-    const PNX(plan) window_param, int sign,
+    const PNX(plan) window_param,
     C *out
     )
 {
@@ -360,7 +360,7 @@ static void convolution_with_general_window_accumulate(
     const INT *n,
     const INT *local_N, const INT *local_N_start,
     unsigned pnfft_flags,
-    const PNX(plan) window_param, int sign,
+    const PNX(plan) window_param,
     C *out
     )
 {
