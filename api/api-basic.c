@@ -259,7 +259,8 @@ static void adjoint_B_and_F_ik_complex_input(
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
   if( ~compute_flags & PNFFT_OMIT_DECONV )
     for(INT k=0; k<ths->local_N_total; k++)
-      ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
+      ((C*)ths->g1_buffer)[k] = 0;
+//       ((C*)ths->g1_buffer)[k] = ((C*)ths->g1)[k];
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_B]);
 
   /* spread potentials */

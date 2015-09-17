@@ -2758,7 +2758,7 @@ static void loop_over_particles_trafo(
             ths, nodes, p, ths->g2, pre_psi,
             2*m0, local_ngc, cutoff, 2, use_interlacing, interlaced,
             f + 2*ind);
-      if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
+      else if(ths->trafo_flag & PNFFTI_TRAFO_C2R)
         PNX(assign_f_r2r)(
             ths, nodes, p, ths->g2, pre_psi,
             m0, local_ngc, cutoff, 1, use_interlacing, interlaced,
@@ -2841,7 +2841,7 @@ static void loop_over_particles_adj(
   if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
     pre_psi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
   if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI )
-    if(compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F))
+    if( compute_flags & PNFFT_COMPUTE_GRAD_F )
       pre_dpsi = (R*) PNX(malloc)(sizeof(R) * (size_t) cutoff*3);
 
   for(INT p=0; p<nodes->local_M; p++){
@@ -2886,7 +2886,7 @@ static void loop_over_particles_adj(
     }
 
     if( ~nodes->precompute_flags & PNFFT_PRE_GRAD_PSI ){
-      if( compute_flags & (PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F) )
+      if( compute_flags & PNFFT_COMPUTE_GRAD_F )
         pre_dpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
             ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_dpsi,
