@@ -263,7 +263,13 @@
   PNFFT_EXTERN void PNX(get_args)(                                                      \
       int argc, char **argv, const char *name,                                          \
       int neededArgs, unsigned type,                                                    \
-      void *parameter);
+      void *parameter);                                                                 \
+                                                                                        \
+  PNFFT_EXTERN void PNX(check_init_parameters)(                                         \
+      int argc, char **argv,                                                            \
+      ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *M, int *m,                                 \
+      unsigned *pnfft_flags, unsigned *compute_flags,                                   \
+      double *x_max, int *np, int *compare_direct, int *debug);
     
 
 typedef pfft_complex pnfft_complex;
@@ -333,10 +339,12 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 /**************************************/
 /* Flags for PNFFT node initilization */
 /**************************************/
+#define PNFFT_MALLOC_NONE      (0U)
 #define PNFFT_MALLOC_X         (1U<< 0)
 #define PNFFT_MALLOC_F         (1U<< 1)
 #define PNFFT_MALLOC_GRAD_F    (1U<< 2)
 #define PNFFT_MALLOC_HESSIAN_F (1U<< 3)
+#define PNFFT_MALLOC_ALL       ((PNFFT_MALLOC_X | PNFFT_MALLOC_F | PNFFT_MALLOC_GRAD_F | PNFFT_MALLOC_HESSIAN_F))
 
 /* enable some optimizations for real inputs */
 #define PNFFT_REAL_F           (1U<< 4)
@@ -358,11 +366,12 @@ PNFFT_DEFINE_API(PNFFT_MANGLE_LONG_DOUBLE, PFFT_MANGLE_LONG_DOUBLE, FFTW_MANGLE_
 /*************************************/
 /* Flags for PNFFT node finalization */
 /*************************************/
+#define PNFFT_FREE_NONE        (0U)
 #define PNFFT_FREE_X           ((PNFFT_MALLOC_X))
 #define PNFFT_FREE_F           ((PNFFT_MALLOC_F))
 #define PNFFT_FREE_GRAD_F      ((PNFFT_MALLOC_GRAD_F))
 #define PNFFT_FREE_HESSIAN_F   ((PNFFT_MALLOC_HESSIAN_F))
-#define PNFFT_FREE_ALL         ((PNFFT_FREE_X | PNFFT_FREE_F | PNFFT_FREE_GRAD_F | PNFFT_FREE_HESSIAN_F))
+#define PNFFT_FREE_ALL         ((PNFFT_MALLOC_ALL))
 
 
 /*****************************/

@@ -872,3 +872,137 @@ void PNX(apr_real_3d)(
   apr_3d(data, local_N, local_N_start, pnfft_flags, name, comm, 0);
 }
 
+void PNX(check_init_parameters)(
+    int argc, char **argv,
+    ptrdiff_t *N, ptrdiff_t *n, ptrdiff_t *local_M, int *m,
+    unsigned *pnfft_flags, unsigned *compute_flags,
+    double *x_max, int *np, int *compare_direct, int *debug
+    )
+{
+  /* default values */
+  int window=4;         unsigned window_flag;
+  int fast_gaussian=0;  unsigned fast_gaussian_flag;
+  int intpol=-1;        unsigned intpol_flag;
+  int interlaced=0;     unsigned interlaced_flag;
+  int diff_ik=0;        unsigned diff_ik_flag;
+  int tr_f_hat=0;       unsigned tr_f_hat_flag;
+  int compute_f = 1;
+  int compute_grad_f = 1;
+  int compute_hessian_f = 1;
+  N[0] = N[1] = N[2] = 16;
+  n[0] = n[1] = n[2] = 0;
+  *local_M = 0;
+  *m = 6;
+  x_max[0] = x_max[1] = x_max[2] = 0.5;
+  np[0]=2; np[1]=2; np[2]=2;
+
+  pnfft_get_args(argc, argv, "-pnfft_local_M", 1, PFFT_PTRDIFF_T, local_M);
+  pnfft_get_args(argc, argv, "-pnfft_N", 3, PFFT_PTRDIFF_T, N);
+  pnfft_get_args(argc, argv, "-pnfft_n", 3, PFFT_PTRDIFF_T, n);
+  pnfft_get_args(argc, argv, "-pnfft_np", 3, PFFT_INT, np);
+  pnfft_get_args(argc, argv, "-pnfft_m", 1, PFFT_INT, m);
+  pnfft_get_args(argc, argv, "-pnfft_window", 1, PFFT_INT, &window);
+  pnfft_get_args(argc, argv, "-pnfft_fast_gaussian", 1, PFFT_INT, &fast_gaussian);
+  pnfft_get_args(argc, argv, "-pnfft_intpol", 1, PFFT_INT, &intpol);
+  pnfft_get_args(argc, argv, "-pnfft_interlaced", 1, PFFT_INT, &interlaced);
+  pnfft_get_args(argc, argv, "-pnfft_diff_ik", 1, PFFT_INT, &diff_ik);
+  pnfft_get_args(argc, argv, "-pnfft_tr_f_hat", 1, PFFT_INT, &tr_f_hat);
+  pnfft_get_args(argc, argv, "-pnfft_x_max", 3, PFFT_DOUBLE, x_max);
+  pnfft_get_args(argc, argv, "-pnfft_debug", 1, PFFT_INT, debug);
+  pnfft_get_args(argc, argv, "-pnfft_compare_direct", 1, PFFT_INT, compare_direct);
+  pnfft_get_args(argc, argv, "-pnfft_compute_f", 1, PFFT_INT, &compute_f);
+  pnfft_get_args(argc, argv, "-pnfft_compute_grad_f", 1, PFFT_INT, &compute_grad_f);
+  pnfft_get_args(argc, argv, "-pnfft_compute_hessian_f", 1, PFFT_INT, &compute_hessian_f);
+
+  /* if M or n are set to zero, we choose nice default values */
+  *local_M = (*local_M==0) ? N[0]*N[1]*N[2]/(np[0]*np[1]*np[2]) : *local_M;
+  for(int t=0; t<3; t++)
+    n[t] = (n[t]==0) ? 2*N[t] : n[t];
+
+  switch(window){
+    case 0:  window_flag = PNFFT_WINDOW_GAUSSIAN; break;
+    case 1:  window_flag = PNFFT_WINDOW_BSPLINE; break;
+    case 2:  window_flag = PNFFT_WINDOW_SINC_POWER; break;
+    case 3:  window_flag = PNFFT_WINDOW_BESSEL_I0; break;
+    case 4:  window_flag = PNFFT_WINDOW_KAISER_BESSEL; break;
+    case 5:  window_flag = PNFFT_WINDOW_GAUSSIAN_T; break;
+    default: window_flag = PNFFT_WINDOW_KAISER_BESSEL;
+  }
+
+  switch(intpol){
+    case 0: intpol_flag = PNFFT_PRE_CONST_PSI; break;
+    case 1: intpol_flag = PNFFT_PRE_LIN_PSI; break;
+    case 2: intpol_flag = PNFFT_PRE_QUAD_PSI; break;
+    case 3: intpol_flag = PNFFT_PRE_CUB_PSI; break;
+    default: intpol_flag = 0;
+  }
+
+  *compute_flags = 0;
+  if(compute_f)         *compute_flags |= PNFFT_COMPUTE_F;
+  if(compute_grad_f)    *compute_flags |= PNFFT_COMPUTE_GRAD_F;
+  if(compute_hessian_f) *compute_flags |= PNFFT_COMPUTE_HESSIAN_F;
+
+  interlaced_flag    = (interlaced)    ? PNFFT_INTERLACED : 0;
+  diff_ik_flag       = (diff_ik)       ? PNFFT_DIFF_IK : PNFFT_DIFF_AD;
+  tr_f_hat_flag      = (tr_f_hat)      ? PNFFT_TRANSPOSED_F_HAT : 0;
+  fast_gaussian_flag = (fast_gaussian) ? PNFFT_FAST_GAUSSIAN : 0;
+
+  pfft_printf(MPI_COMM_WORLD, "******************************************************************************************************\n");
+  pfft_printf(MPI_COMM_WORLD, "* Computation of parallel NFFT\n");
+  pfft_printf(MPI_COMM_WORLD, "* for  N[0] x N[1] x N[2] = %td x %td x %td Fourier coefficients (change with -pnfft_N * * *)\n", N[0], N[1], N[2]);
+  pfft_printf(MPI_COMM_WORLD, "* at   local_M = %td nodes per process (change with -pnfft_local_M *)\n", *local_M);
+  pfft_printf(MPI_COMM_WORLD, "* with n[0] x n[1] x n[2] = %td x %td x %td FFT grid size (change with -pnfft_n * * *),\n", n[0], n[1], n[2]);
+  pfft_printf(MPI_COMM_WORLD, "*      m = %d real space cutoff (change with -pnfft_m *),\n", *m);
+  pfft_printf(MPI_COMM_WORLD, "*      window = %d window function ", window);
+  switch(window_flag){
+    case PNFFT_WINDOW_GAUSSIAN:      pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_GAUSSIAN) "); break;
+    case PNFFT_WINDOW_BSPLINE:       pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BSPLINE) "); break;
+    case PNFFT_WINDOW_SINC_POWER:    pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_SINC_POWER) "); break;
+    case PNFFT_WINDOW_KAISER_BESSEL: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_BESSEL_I0) "); break;
+    case PNFFT_WINDOW_BESSEL_I0:     pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_KAISER_BESSEL) "); break;
+    case PNFFT_WINDOW_GAUSSIAN_T: pfft_printf(MPI_COMM_WORLD, "(PNFFT_WINDOW_GAUSSIAN_T) "); break;
+    default: pfft_printf(MPI_COMM_WORLD, "(UNKNOWN WINDOW FUNCTION) "); break;
+  }
+  pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_window *),\n");
+  if(fast_gaussian_flag & PNFFT_FAST_GAUSSIAN)
+    pfft_printf(MPI_COMM_WORLD, "*      fast Gaussian = enabled (disable with -pnfft_fast_gaussian 0)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      fast Gaussian = disabled (enable with -pnfft_fast_gaussian 1)\n");
+  pfft_printf(MPI_COMM_WORLD, "*      intpol = %d interpolation order ", intpol);
+  switch(intpol_flag){
+    case PNFFT_PRE_CONST_PSI: pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CONST_PSI) "); break;
+    case PNFFT_PRE_LIN_PSI:   pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_LIN_PSI) "); break;
+    case PNFFT_PRE_QUAD_PSI:  pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_QUAD_PSI) "); break;
+    case PNFFT_PRE_CUB_PSI:   pfft_printf(MPI_COMM_WORLD, "(PNFFT_PRE_CUB_PSI) "); break;
+    default:                  pfft_printf(MPI_COMM_WORLD, "(No interpolation enabled) ");
+  }
+  pfft_printf(MPI_COMM_WORLD, "(change with -pnfft_intpol *),\n");
+  if(interlaced_flag & PNFFT_INTERLACED)
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = enabled (disable with -pnfft_interlaced 0)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      interlacing = disabled (enable with -pnfft_interlaced 1)\n");
+  if(tr_f_hat_flag & PNFFT_TRANSPOSED_F_HAT)
+    pfft_printf(MPI_COMM_WORLD, "*      transposed f_hat = disabled (enable with -pnfft_transposed_f_hat 1)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      transposed f_hat = enabled\n");
+  if(*compute_flags & PNFFT_COMPUTE_F)
+    pfft_printf(MPI_COMM_WORLD, "*      compute_f = enabled (disable with -pnfft_compute_f 0)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      compute_f = disabled\n");
+  if(*compute_flags & PNFFT_COMPUTE_GRAD_F)
+    pfft_printf(MPI_COMM_WORLD, "*      compute_grad_f = enabled (disable with -pnfft_compute_grad_f 0)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      compute_grad_f = disabled\n");
+  if(*compute_flags & PNFFT_COMPUTE_HESSIAN_F)
+    pfft_printf(MPI_COMM_WORLD, "*      compute_hessian_f = enabled (disable with -pnfft_compute_hessian_f 0)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      compute_hessian_f = disabled\n");
+  if(*compare_direct)
+    pfft_printf(MPI_COMM_WORLD, "*      comparison with NDFT (compare with higher accuracy NFFT by -pnfft_compare_direct 0)\n");
+  else
+    pfft_printf(MPI_COMM_WORLD, "*      comparison with higher accuracy NFFT (compare with NDFT by -pnfft_compare_direct 1)\n");
+  pfft_printf(MPI_COMM_WORLD, "* on   np[0] x np[1] x np[2] = %td x %td x %td processes (change with -pnfft_np * * *)\n", np[0], np[1], np[2]);
+  pfft_printf(MPI_COMM_WORLD, "*******************************************************************************************************\n\n");
+
+  *pnfft_flags = window_flag | fast_gaussian_flag | intpol_flag | diff_ik_flag | tr_f_hat_flag | interlaced_flag;
+}

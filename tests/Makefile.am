@@ -39,18 +39,13 @@ if DOUBLE
 check_PROGRAMS += \
 	simple_test \
 	simple_test_c2r \
-	check_trafo check_trafo_transposed \
-	check_trafo_grad check_trafo_transposed_grad \
+	check_trafo check_adj \
 	check_trafo_2d check_trafo_transposed_2d \
-	check_adj check_adj_transposed \
-	check_adj_grad_vs_ndft \
+	check_trafo_vs_ndft_transposed_2d \
 	check_vs_pfft \
 	pnfft_test \
 	pnfft_test_adv \
-	check_trafo_vs_ndft check_trafo_grad_vs_ndft check_adj_vs_ndft \
-	check_trafo_hessian_vs_ndft \
 	check_trafo_vs_ndft_c2r check_adj_vs_ndft_c2r \
-	check_trafo_vs_ndft_transposed_2d \
 	simple_test_c2r_c2c_compare_real simple_test_c2r_c2c_compare_complex \
 	simple_test_c2r_c2c_compare_grad simple_test_c2r_c2c_compare_timer
 endif
