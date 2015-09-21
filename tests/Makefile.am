@@ -47,6 +47,7 @@ check_PROGRAMS += \
 	pnfft_test_adv \
 	check_trafo_vs_ndft_c2r check_adj_vs_ndft_c2r \
 	simple_test_c2r_c2c_compare_real simple_test_c2r_c2c_compare_complex \
-	simple_test_c2r_c2c_compare_grad simple_test_c2r_c2c_compare_timer
+	simple_test_c2r_c2c_compare_grad simple_test_c2r_c2c_compare_timer \
+	check_charge_dipole
 endif
 

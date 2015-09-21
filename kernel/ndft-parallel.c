@@ -392,13 +392,15 @@ void PNX(trafo_A)(
     PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->hessian_f !!!\n"); 
 
   if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
-    for(INT j=0; j<nodes->local_M; j++)  nodes->f[j] = 0;
+    if(compute_flags & PNFFT_COMPUTE_F)
+      for(INT j=0; j<nodes->local_M; j++)  nodes->f[j] = 0;
     if(compute_flags & PNFFT_COMPUTE_GRAD_F)
       for(INT j=0; j<3*nodes->local_M; j++)  nodes->grad_f[j] = 0;
     if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
       for(INT j=0; j<6*nodes->local_M; j++)  nodes->hessian_f[j] = 0;
   } else if (ths->trafo_flag & PNFFTI_TRAFO_C2C) {
-    for(INT j=0; j<nodes->local_M; j++)  ((C*)nodes->f)[j] = 0;
+    if(compute_flags & PNFFT_COMPUTE_F)
+      for(INT j=0; j<nodes->local_M; j++)  ((C*)nodes->f)[j] = 0;
     if(compute_flags & PNFFT_COMPUTE_GRAD_F)
       for(INT j=0; j<3*nodes->local_M; j++)  ((C*)nodes->grad_f)[j] = 0;
     if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
