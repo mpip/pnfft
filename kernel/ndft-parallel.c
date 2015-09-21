@@ -1818,7 +1818,6 @@ static void get_mpi_cart_dims_3d(
   MPI_Cartdim_get(comm_cart, rnk_pm);
 
   periods = (int*) malloc(sizeof(int) * (size_t) *rnk_pm);
-  coords  = (int*) malloc(sizeof(int) * (size_t) *rnk_pm);
   MPI_Cart_get(comm_cart, *rnk_pm, dims, periods, coords);
   free(periods);
 }
