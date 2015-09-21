@@ -55,7 +55,7 @@ int main(int argc, char **argv){
 
   /* calculate error of PNFFT */
   compare_energy(energy1, energy2, local_M, "* Results in energy", MPI_COMM_WORLD);
-  compare_force( force1,  force2,  local_M, "* Results in force", MPI_COMM_WORLD);
+  compare_force( force1,  force2,  local_M, "* Results in force",  MPI_COMM_WORLD);
 
   /* free mem and finalize */
   if(energy1) pnfft_free(energy1);
