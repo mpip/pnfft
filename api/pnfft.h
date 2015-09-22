@@ -212,6 +212,9 @@
       const R *lo, const R *up, const R *x_max, INT loc_M,                              \
       R *x);                                                                            \
                                                                                         \
+  PNFFT_EXTERN void PNX(zero_f_hat)(                                                    \
+      PNX(plan) ths);                                                                   \
+                                                                                        \
   PNFFT_EXTERN R PNX(inv_phi_hat)(                                                      \
       const PNX(plan) ths, int dim, INT k);                                             \
   PNFFT_EXTERN R PNX(phi_hat)(                                                          \

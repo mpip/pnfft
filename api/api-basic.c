@@ -202,10 +202,12 @@ void PNX(trafo)(
 {
   int use_interlacing, interlaced;
 
-  if(ths==NULL){
-    PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
+  if(ths==NULL)   return;
+  if(nodes==NULL) return;
+
+  /* return if nothing to do */
+  if( !(compute_flags & (PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F)) )
     return;
-  }
 
   if(compute_flags & PNFFT_COMPUTE_DIRECT){
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
@@ -337,16 +339,27 @@ static void adj(
   PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_MATRIX_D]);
 }
 
+void PNX(zero_f_hat)(
+    PNX(plan) ths
+    )
+{
+  for(INT m=0; m<ths->local_N_total; ++m)
+    ths->f_hat[m] = 0;
+}
+
+
 void PNX(adj)(
     PNX(plan) ths, PNX(nodes) nodes, unsigned compute_flags
     )
 {
   int use_interlacing, interlaced;
 
-  if(ths==NULL){
-    PX(fprintf)(MPI_COMM_WORLD, stderr, "!!! Error: Can not execute PNFFT Plan == NULL !!!\n");
+  if(ths==NULL) return;
+  if(nodes==NULL) return;
+
+  /* return if nothing to do */
+  if( !(compute_flags & (PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F)) )
     return;
-  }
 
   if(compute_flags & PNFFT_COMPUTE_DIRECT){
     PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
@@ -361,8 +374,7 @@ void PNX(adj)(
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
   if( ~compute_flags & PNFFT_COMPUTE_ACCUMULATED )
-    for(INT m=0; m<ths->local_N_total; m++)
-      ths->f_hat[m] = 0;
+    PNX(zero_f_hat)(ths);
 
   if(ths->pnfft_flags & PNFFT_INTERLACED){
     /* compute interlaced NFFT and average the results */
