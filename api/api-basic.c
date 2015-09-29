@@ -202,26 +202,16 @@ void PNX(trafo)(
 {
   int use_interlacing, interlaced;
 
-  if(ths==NULL)   return;
-  if(nodes==NULL) return;
+  if(ths == NULL)   return;
+  if(nodes == NULL) return;
 
   /* return if nothing to do */
+  if(nodes->local_M == 0) return;
   if( !(compute_flags & (PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F)) )
     return;
 
-  if(compute_flags & PNFFT_COMPUTE_DIRECT){
-    PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
-
-    PNX(trafo_A)(ths, nodes, compute_flags);
-    
-    ths->timer_trafo[PNFFT_TIMER_ITER]++;
-    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
-    return;
-  }
-
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
   if( ~compute_flags & PNFFT_COMPUTE_ACCUMULATED ){
     INT tuple = (ths->trafo_flag & PNFFTI_TRAFO_C2R) ? 1 : 2;
 
@@ -235,7 +225,15 @@ void PNX(trafo)(
       for(INT m=0; m<6*tuple*nodes->local_M; m++)
         nodes->hessian_f[m] = 0;
   }
-  PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_MATRIX_B]);
+
+  if(compute_flags & PNFFT_COMPUTE_DIRECT){
+
+    PNX(trafo_A)(ths, nodes, compute_flags);
+    
+    ths->timer_trafo[PNFFT_TIMER_ITER]++;
+    PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_WHOLE]);
+    return;
+  }
 
   if(ths->pnfft_flags & PNFFT_INTERLACED){
     /* compute interlaced NFFT and average the results */
@@ -354,15 +352,20 @@ void PNX(adj)(
 {
   int use_interlacing, interlaced;
 
-  if(ths==NULL) return;
-  if(nodes==NULL) return;
+  if(ths == NULL)   return;
+  if(nodes == NULL) return;
 
   /* return if nothing to do */
+  if(nodes->local_M == 0) return;
   if( !(compute_flags & (PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F)) )
     return;
 
+  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
+
+  if( ~compute_flags & PNFFT_COMPUTE_ACCUMULATED )
+    PNX(zero_f_hat)(ths);
+
   if(compute_flags & PNFFT_COMPUTE_DIRECT){
-    PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 
     PNX(adj_A)(ths, nodes, compute_flags);
 
@@ -370,11 +373,6 @@ void PNX(adj)(
     PNFFT_FINISH_TIMING(ths->timer_adj[PNFFT_TIMER_WHOLE]);
     return;
   }
-
-  PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
-
-  if( ~compute_flags & PNFFT_COMPUTE_ACCUMULATED )
-    PNX(zero_f_hat)(ths);
 
   if(ths->pnfft_flags & PNFFT_INTERLACED){
     /* compute interlaced NFFT and average the results */

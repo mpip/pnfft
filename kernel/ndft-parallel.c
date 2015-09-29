@@ -636,7 +636,10 @@ void PNX(adj_A)(
     if(local_Np_total == 0) continue;
 
     buffer = malloc(sizeof(C) * local_Np_total);
-    for(INT k=0; k<local_Np_total; k++) buffer[k] = 0;
+    if(pid==myrnk) /* accumulate results with existing values */
+      for(INT k=0; k<local_Np_total; k++) buffer[k] = ths->f_hat[k];
+    else
+      for(INT k=0; k<local_Np_total; k++) buffer[k] = 0;
 
     INT t0 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 1 : 0;
     INT t1 = (ths->pnfft_flags & PNFFT_TRANSPOSED_F_HAT) ? 2 : 1;
