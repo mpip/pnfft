@@ -686,7 +686,7 @@ void PNX(adj_A)(
           for(int t=0; t<3; t++) grad_f[t] = ((C*)nodes->grad_f)[3*j+t];
 
         INT m=0;
-        C exp_kx0 = -2.0 * PNFFT_PI * I * exp_kx0_start;
+        C exp_kx0 = 2.0 * PNFFT_PI * I * exp_kx0_start;
         for(INT k0 = local_Np_start[t0]; k0 < local_Np_start[t0] + local_Np[t0]; k0++){
           C sum_k0 = grad_f[t0] * k0;
           C exp_kx1 = exp_kx0 * exp_kx1_start;
@@ -2957,13 +2957,13 @@ void PNX(adjoint_scale_ik_diff_c2c)(
     for(k[1]=local_N_start[1]; k[1]<local_N_start[1] + local_N[1]; k[1]++)
       for(k[2]=local_N_start[2]; k[2]<local_N_start[2] + local_N[2]; k[2]++)
         for(k[0]=local_N_start[0]; k[0]<local_N_start[0] + local_N[0]; k[0]++, m++)
-          g1_buffer[m] += -2*PNFFT_PI * I * k[dim] * g1[m];
+          g1_buffer[m] += 2*PNFFT_PI * I * k[dim] * g1[m];
   } else {
     /* g_hat is non-transposed N0 x N1 x N2 */
     for(k[0]=local_N_start[0]; k[0]<local_N_start[0] + local_N[0]; k[0]++)
       for(k[1]=local_N_start[1]; k[1]<local_N_start[1] + local_N[1]; k[1]++)
         for(k[2]=local_N_start[2]; k[2]<local_N_start[2] + local_N[2]; k[2]++, m++)
-          g1_buffer[m] += -2*PNFFT_PI * I * k[dim] * g1[m];
+          g1_buffer[m] += 2*PNFFT_PI * I * k[dim] * g1[m];
   }
 }
 
