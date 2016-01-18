@@ -997,6 +997,8 @@ PNX(plan) PNX(init_internal)(
 
   /* init window specific parameters */
   ths->b = (R*) PNX(malloc)(sizeof(R) * (size_t) d);
+  for(int t=0; t<ths->d; t++)
+    ths->b[t]= 0.0;
 
   if(ths->pnfft_flags & PNFFT_WINDOW_GAUSSIAN){
     for(int t=0; t<ths->d; t++)
