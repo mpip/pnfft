@@ -26,8 +26,8 @@ contains
        end if
 
        ! Now rescale the coordinates to [-0.5,0.5)
-       maxx=maxval(x_cartesian(:,idim))
-       minx=minval(x_cartesian(:,idim))
+       maxx=maxval(x_cartesian(1:M_global(idim),idim))
+       minx=minval(x_cartesian(1:M_global(idim),idim))
        width=maxx-minx
        center=(maxx+minx)/2.0D0
 
@@ -235,9 +235,13 @@ program main
   ! the same number of gridpoints as we have as Fourier modes
   M_global=N
   allocate(cartesian_grid(maxval(M_global),3))
+  cartesian_grid=0.0D0
   call init_global_cartesian_grid(M_global,lower_border,upper_border,spacing,cartesian_grid,local_M)
   !print*,"local_M = ",local_M
-  x_max = maxval(abs(cartesian_grid),1)
+  print*,"M_global = ",M_global
+  do ii=1,3
+    x_max(ii)=maxval(abs(cartesian_grid(1:M_global(ii),ii)))
+  end do
   !x_max = 0.5D0
   ! Plan parallel NFFT
   !pnfft = pnfft_init_3d(N_for_c, local_M, comm_cart_3d)
