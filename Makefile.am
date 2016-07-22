@@ -55,7 +55,7 @@ pnfft1@PREC_SUFFIX@.pc: pnfft.pc
 
 # Install pkg-config file in correct location.
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = pfft.pc
+pkgconfig_DATA = pnfft.pc
 
 #################################################################
 # Documentation
