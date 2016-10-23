@@ -1423,21 +1423,53 @@ static void free_intpol_tables(R** intpol_tables, int num_tables){
 }
 
 void PNX(rmplan)(
-    PNX(plan) ths
+    PNX(plan) ths, unsigned pnfft_finalize_flags
     )
 {
   /* plan was already destroyed or never initialized */
   if(ths==NULL)
     return;
 
-  PNX(rmtimer)(ths->timer_trafo);
-  PNX(rmtimer)(ths->timer_adj);
+  if(pnfft_finalize_flags & PNFFT_FREE_F_HAT)
+    PNX(save_free)(ths->f_hat);
+
+  PNX(save_free)(ths->N);
+  PNX(save_free)(ths->sigma);
+  PNX(save_free)(ths->n);
+  PNX(save_free)(ths->no);
+  PNX(save_free)(ths->x_max);
+
+  PNX(save_free)(ths->local_N);
+  PNX(save_free)(ths->local_N_start);
+  PNX(save_free)(ths->local_no);
+  PNX(save_free)(ths->local_no_start);
+
+  /* finalize window specific parameters */
+  PNX(save_free)(ths->b);
+  PNX(save_free)(ths->exp_const);
+  PNX(save_free)(ths->spline_coeffs);
+  PNX(save_free)(ths->pre_inv_phi_hat_trafo);
+  PNX(save_free)(ths->pre_inv_phi_hat_adj);
+
+  /* g1 and g2 may point to the same mem for inplace transforms, do not free twice */
+  if(ths->g2 != ths->g1) PNX(save_free)(ths->g2);
+  PNX(save_free)(ths->g1);
+  PNX(save_free)(ths->g1_buffer);
+
+  PX(destroy_plan)(ths->pfft_forw);
+  PX(destroy_plan)(ths->pfft_back);
+  PX(destroy_gcplan)(ths->gcplan);
 
   free_intpol_tables(ths->intpol_tables_psi, ths->d);
   free_intpol_tables(ths->intpol_tables_dpsi, ths->d);
   free_intpol_tables(ths->intpol_tables_ddpsi, ths->d);
 
-  /* free memory */
+  PNX(rmtimer)(ths->timer_trafo);
+  PNX(rmtimer)(ths->timer_adj);
+
+  MPI_Comm_free(&(ths->comm_cart));
+
+  /* free mem of struct */
   free(ths);
   /* ths=NULL; would be senseless, since we can not change the pointer itself */
 }

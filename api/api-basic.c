@@ -435,21 +435,21 @@ void PNX(free_nodes)(
   if(nodes==NULL)
     return;
 
-  if((pnfft_finalize_flags & PNFFT_FREE_GRAD_F) && (nodes->grad_f != NULL))
-    PNX(free)(nodes->grad_f);
-  if((pnfft_finalize_flags & PNFFT_FREE_HESSIAN_F) && (nodes->hessian_f != NULL))
-    PNX(free)(nodes->hessian_f);
-  if((pnfft_finalize_flags & PNFFT_FREE_F) && (nodes->f != NULL))
-    PNX(free)(nodes->f);
-  if((pnfft_finalize_flags & PNFFT_FREE_X) && (nodes->x != NULL))
-    PNX(free)(nodes->x);
+  if(pnfft_finalize_flags & PNFFT_FREE_GRAD_F)
+    PNX(save_free)(nodes->grad_f);
+  if(pnfft_finalize_flags & PNFFT_FREE_HESSIAN_F)
+    PNX(save_free)(nodes->hessian_f);
+  if(pnfft_finalize_flags & PNFFT_FREE_F)
+    PNX(save_free)(nodes->f);
+  if(pnfft_finalize_flags & PNFFT_FREE_X)
+    PNX(save_free)(nodes->x);
 
-  if(nodes->pre_psi != NULL)      PNX(free)(nodes->pre_psi);
-  if(nodes->pre_dpsi != NULL)     PNX(free)(nodes->pre_dpsi);
-  if(nodes->pre_ddpsi != NULL)    PNX(free)(nodes->pre_ddpsi);
-  if(nodes->pre_psi_il != NULL)   PNX(free)(nodes->pre_psi_il);
-  if(nodes->pre_dpsi_il != NULL)  PNX(free)(nodes->pre_dpsi_il);
-  if(nodes->pre_ddpsi_il != NULL) PNX(free)(nodes->pre_ddpsi_il);
+  PNX(save_free)(nodes->pre_psi);
+  PNX(save_free)(nodes->pre_dpsi);
+  PNX(save_free)(nodes->pre_ddpsi);
+  PNX(save_free)(nodes->pre_psi_il);
+  PNX(save_free)(nodes->pre_dpsi_il);
+  PNX(save_free)(nodes->pre_ddpsi_il);
 
   /* free memory */
   free(nodes);
@@ -461,62 +461,7 @@ void PNX(finalize)(
     PNX(plan) ths, unsigned pnfft_finalize_flags
     )
 {
-  if((pnfft_finalize_flags & PNFFT_FREE_F_HAT) && (ths->f_hat != NULL))
-    PNX(free)(ths->f_hat);
-
-  PX(destroy_plan)(ths->pfft_forw);
-  PX(destroy_plan)(ths->pfft_back);
-  PX(destroy_gcplan)(ths->gcplan);
-
-  if(ths->g2 != ths->g1){
-    if(ths->g2 != NULL)
-      PNX(free)(ths->g2);
-  }
-  if(ths->g1 != NULL)
-    PNX(free)(ths->g1);
-  if(ths->g1_buffer != NULL)
-    PNX(free)(ths->g1_buffer);
-
-  if(ths->intpol_tables_psi != NULL){
-    for(int t=0;t<ths->d; t++)
-      if(ths->intpol_tables_psi[t] != NULL)
-        PNX(free)(ths->intpol_tables_psi[t]);
-    PNX(free)(ths->intpol_tables_psi);
-  }
-
-  if(ths->intpol_tables_dpsi != NULL){
-    for(int t=0;t<ths->d; t++)
-      if(ths->intpol_tables_dpsi[t] != NULL)
-        PNX(free)(ths->intpol_tables_dpsi[t]);
-    PNX(free)(ths->intpol_tables_dpsi);
-  }
-
-  PNX(free)(ths->x_max);
-  PNX(free)(ths->sigma);
-  PNX(free)(ths->n);
-  PNX(free)(ths->no);
-  PNX(free)(ths->N);
-  PNX(free)(ths->local_N);
-  PNX(free)(ths->local_N_start);
-  PNX(free)(ths->local_no);
-  PNX(free)(ths->local_no_start);
-
-  MPI_Comm_free(&(ths->comm_cart));
-
-  /* finalize window specific parameters */
-  if(ths->b != NULL)
-    PNX(free)(ths->b);
-  if(ths->exp_const != NULL)
-    PNX(free)(ths->exp_const);
-  if(ths->spline_coeffs != NULL)
-    PNX(free)(ths->spline_coeffs);
-  if(ths->pre_inv_phi_hat_trafo != NULL)
-    PNX(free)(ths->pre_inv_phi_hat_trafo);
-  if(ths->pre_inv_phi_hat_adj != NULL)
-    PNX(free)(ths->pre_inv_phi_hat_adj);
-
-  /* free mem of struct */
-  PNX(rmplan)(ths);
+  PNX(rmplan)(ths, pnfft_finalize_flags);
 }
 
 void PNX(set_f_hat)(

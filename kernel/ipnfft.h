@@ -316,7 +316,7 @@ void PNX(rmtimer)(
 void PNX(init_precompute_window)(
     PNX(plan) ths);
 void PNX(rmplan)(
-    PNX(plan) ths);
+    PNX(plan) ths, unsigned pnfft_finalize_flags);
 INT PNX(local_size_internal)(
     const INT *N, const INT *n, const INT *no,
     MPI_Comm comm_cart_2d,
