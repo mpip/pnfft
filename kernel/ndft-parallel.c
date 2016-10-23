@@ -236,6 +236,10 @@ static void precompute_psi(
     unsigned precompute_flags,
     R* pre_psi, R* pre_dpsi, R* pre_ddpsi);
 
+static void free_intpol_tables(
+    R** intpol_tables, int num_tables);
+
+
 /* TODO: This function calculates the number of minimum samples of the 2-point-Taylor regularized
  * kernel function 1/x to reach a certain relative error 'eps'. Our windows are likely to be nicer,
  * so this is a good starting point. Think about the optimal number for every window. */
@@ -1407,6 +1411,16 @@ static PNX(plan) mkplan(
   return ths;
 }
 
+static void free_intpol_tables(R** intpol_tables, int num_tables){
+  if(NULL == intpol_tables)
+    return;
+  
+  for(int t=0; t<num_tables; ++t){
+    PNX(save_free)(intpol_tables[t]);
+  }
+
+  PNX(free)(intpol_tables);
+}
 
 void PNX(rmplan)(
     PNX(plan) ths
@@ -1419,13 +1433,14 @@ void PNX(rmplan)(
   PNX(rmtimer)(ths->timer_trafo);
   PNX(rmtimer)(ths->timer_adj);
 
+  free_intpol_tables(ths->intpol_tables_psi, ths->d);
+  free_intpol_tables(ths->intpol_tables_dpsi, ths->d);
+  free_intpol_tables(ths->intpol_tables_ddpsi, ths->d);
+
   /* free memory */
   free(ths);
   /* ths=NULL; would be senseless, since we can not change the pointer itself */
 }
-
-
-
 
 
 void PNX(malloc_x)(
