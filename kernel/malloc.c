@@ -38,6 +38,11 @@ void PNX(free)(void *p){
   PX(free)(p);
 }
 
+void PNX(save_free)(void *p){
+  if(p != NULL)
+    PX(free)(p);
+}
+
 
 
 void PNX(die)(

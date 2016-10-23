@@ -304,6 +304,7 @@ void PNX(sort_nodes_indices_qsort_3d)(
 /* malloc.c */
 void PNX(die)(
     const char *s, MPI_Comm comm);
+void PNX(save_free)(void *p);
 
 /* timer.c */
 double* PNX(mktimer)(
