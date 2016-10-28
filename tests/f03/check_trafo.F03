@@ -149,6 +149,7 @@ subroutine init_random_x(lo, up, local_M, x)
   integer(C_INTPTR_T), intent(in) :: local_M
   real(C_DOUBLE), intent(in) :: lo(3), up(3)
   real(C_DOUBLE), intent(out) :: x(3,local_M)
+  real(C_DOUBLE) :: rand
 
   do j=1,local_M
     do t=1,3

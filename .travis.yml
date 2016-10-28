@@ -2,16 +2,20 @@ language: c
 compiler: gcc
 os: linux
 
-notifications:
-  email: true
-
-env:
-  - MPI=openmpi
+addons:
+  apt:
+    packages:
+    - gsl-bin
+    - libgsl0-dev
+    - gfortran
+    - openmpi-bin
+    - openmpi-common
+    - libopenmpi-dev
 
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install gsl-bin libgsl0-dev
-  - sh ./conf/travis-install-mpi.sh $MPI
+  # unset $CC compiler variable since it is known to interfere with the MPI compiler
+  # see https://docs.travis-ci.com/user/languages/c#MPI-projects
+  - test -n $CC && unset CC
 
 install:
   - sh ./conf/travis-install-fftw.sh
@@ -19,6 +23,10 @@ install:
 
 script: ./bootstrap.sh && ./configure CPPFLAGS="-I$HOME/local/pfft/include -I$HOME/local/fftw/include" LDFLAGS="-L$HOME/local/pfft/lib -L$HOME/local/fftw/lib" FC=mpif90 CC=mpicc MPICC=mpicc MPIFC=mpif90 && make && make check
 
+## Print config.log for debugging.
 after_failure: "cat config.log"
 
+## Turn on email notifications.
+notifications:
+  email: true
 
