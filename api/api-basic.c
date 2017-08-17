@@ -202,17 +202,12 @@ void PNX(trafo)(
 {
   int use_interlacing, interlaced;
 
-  if(ths == NULL)   return;
-  if(nodes == NULL) return;
-
-  /* return if nothing to do */
-  if(nodes->local_M == 0) return;
-  if( !(compute_flags & (PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F | PNFFT_COMPUTE_HESSIAN_F)) )
-    return;
+  if(ths == NULL) return;
+  if(nodes == NULL && (~compute_flags & PNFFT_OMIT_CONV) ) return;
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 
-  if( ~compute_flags & PNFFT_COMPUTE_ACCUMULATED ){
+  if( ~compute_flags & (PNFFT_COMPUTE_ACCUMULATED | PNFFT_OMIT_CONV) ){
     INT tuple = (ths->trafo_flag & PNFFTI_TRAFO_C2R) ? 1 : 2;
 
     if(compute_flags & PNFFT_COMPUTE_F)
@@ -352,13 +347,8 @@ void PNX(adj)(
 {
   int use_interlacing, interlaced;
 
-  if(ths == NULL)   return;
-  if(nodes == NULL) return;
-
-  /* return if nothing to do */
-  if(nodes->local_M == 0) return;
-  if( !(compute_flags & (PNFFT_COMPUTE_F | PNFFT_COMPUTE_GRAD_F)) )
-    return;
+  if(ths == NULL) return;
+  if(nodes == NULL && (~compute_flags & PNFFT_OMIT_CONV) ) return;
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_adj[PNFFT_TIMER_WHOLE]);
 

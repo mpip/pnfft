@@ -83,6 +83,29 @@ global NFFT specific variables
 %------------------------------------------------------------------------------
 
 
+\begin{compactitem}
+  \item flags \code{PNFFT_OMIT_DECONV}, \code{PNFFT_OMIT_FFT}, \code{PNFFT_OMIT_CONV}
+  \item \code{pnfft_trafo} and \code{pnfft_adj} can be called with \code{nodes == NULL} if and only if \code{PNFFT_OMIT_CONV} is set. 
+    Direct computation with \code{nodes == NULL} does not make sence. Therefore, it immediately returns without doing anything.
+    Passing only some nodes as NULL pointer may lead to deadlocks. I.e., in parallel calls always pass all or none nodes as NULL.
+  \item \code{PNFFT_COMPUTE_F}, \code{PNFFT_COMPUTE_GRAD_F}, \code{PNFFT_HESSIAN_F} must be set in planning step in order to compute the correct FFT-values.
+        This makes a difference in the number of FFTs for ik-diff but not for ad-diff. However, also for ad-diff we need the info in order to optimize precomputation
+        of fct. value and derivatives (TODO: do we always precompute fct. values, 1st order and 2nd derivative, or do we check the flags?)
+        They can also be changed on node-level?
+  \item \code{PNFFT_COMPUTE_ACCUMULATED} with pnfft_adj makes that the Fourier coefficients are not zeroed at the beginning.
+    I.e., multiple calls of adjoint interpolation accumulate in the Fourier coefficients. Typical use case is interpolation for multiple sets of nodes (charges/dipoles),
+    without immediate computation of FFT (use \code{PNFFT_OMIT_FFT} and \code{PNFFT_OMIT_DECONV}). After several convolutions we compute the FFT and deconvolution
+    on the accumulated values.
+  \item \code{PNFFT_COMPUTE_ACCUMULATED} with pnfft_trafo makes that the fct. values, gradients and Hessian are not zeroed at the beginning of trafo.
+    Use case: compute deconv and FFT in one call. Compute fct. values, gradients, Hessian for same set of nodes in separate calls. TODO: Does this flag make sense with trafo?
+  \item Question: Is \code{PNFFT_OMIT_CONV} equivalent to not set any of these flags \code{PNFFT_COMPUTE_F}, \code{PNFFT_COMPUTE_GRAD_F}, \code{PNFFT_COMPUTE_HEASSIAN_F}?
+    Answer: No! These 3 flags are also needed for the correct FFT execution, e.g. with ik-diff we need to call/skip FFTs for each derivative.
+    But: Is this part of planning or execution? Part of both. 
+      Part of planning because of memory allocation. 
+      Part of execution because FFTs are expensive and we only call them if necesarry.
+\end{compactitem}
+
+
 \subsection{Transposed Fourier coefficients}
 A parallel transpose FFT algorithm typically ends up with a transposed order of the output array.
 Start with

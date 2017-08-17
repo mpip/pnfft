@@ -384,16 +384,20 @@ void PNX(trafo_A)(
   INT local_Np[3], local_Np_start[3]; 
   C *buffer;
 
+  if(nodes == NULL) return;
+
   MPI_Comm_size(ths->comm_cart, &np_total);
   MPI_Comm_rank(ths->comm_cart, &myrnk);
 
-  /* check if the output array are allocated */
-  if(compute_flags & PNFFT_COMPUTE_F && nodes->f == NULL)
-    PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->f !!!\n"); 
-  if(compute_flags & PNFFT_COMPUTE_GRAD_F && nodes->grad_f == NULL)
-    PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->grad_f !!!\n"); 
-  if(compute_flags & PNFFT_COMPUTE_HESSIAN_F && nodes->hessian_f == NULL)
-    PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->hessian_f !!!\n"); 
+  /* check if the output arrays are allocated */
+  if(local_M != 0){
+    if(compute_flags & PNFFT_COMPUTE_F && nodes->f == NULL)
+      PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->f !!!\n"); 
+    if(compute_flags & PNFFT_COMPUTE_GRAD_F && nodes->grad_f == NULL)
+      PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->grad_f !!!\n"); 
+    if(compute_flags & PNFFT_COMPUTE_HESSIAN_F && nodes->hessian_f == NULL)
+      PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->hessian_f !!!\n"); 
+  }
 
   if (ths->trafo_flag & PNFFTI_TRAFO_C2R) {
     if(compute_flags & PNFFT_COMPUTE_F)
@@ -620,14 +624,18 @@ void PNX(adj_A)(
   INT local_Np[3], local_Np_start[3]; 
   C *buffer;
 
+  if(nodes == NULL) return;
+
   MPI_Comm_size(ths->comm_cart, &np_total);
   MPI_Comm_rank(ths->comm_cart, &myrnk);
 
-  /* check if the output array are allocated */
-  if(compute_flags & PNFFT_COMPUTE_F && nodes->f == NULL)
-    PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->f !!!\n"); 
-  if(compute_flags & PNFFT_COMPUTE_GRAD_F && nodes->grad_f == NULL)
-    PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->grad_f !!!\n"); 
+  /* check if the output arrays are allocated */
+  if(local_M != 0){
+    if(compute_flags & PNFFT_COMPUTE_F && nodes->f == NULL)
+      PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->f !!!\n"); 
+    if(compute_flags & PNFFT_COMPUTE_GRAD_F && nodes->grad_f == NULL)
+      PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->grad_f !!!\n"); 
+  }
 
   for(int pid=0; pid<np_total; pid++){
     /* compute local_Np, local_Np_start of proc. with rank pid */
