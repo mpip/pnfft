@@ -31,5 +31,5 @@ notifications:
   email:
     recipients:
       - michael.pippig.tuc@gmail.com
-    on_success: always # choose between: always, change, never
+    on_success: change # choose between: always, change, never
     on_failure: always # choose between: always, change, never
