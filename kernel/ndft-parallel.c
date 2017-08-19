@@ -390,7 +390,7 @@ void PNX(trafo_A)(
   MPI_Comm_rank(ths->comm_cart, &myrnk);
 
   /* check if the output arrays are allocated */
-  if(local_M != 0){
+  if(nodes->local_M != 0){
     if(compute_flags & PNFFT_COMPUTE_F && nodes->f == NULL)
       PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->f !!!\n"); 
     if(compute_flags & PNFFT_COMPUTE_GRAD_F && nodes->grad_f == NULL)
@@ -630,7 +630,7 @@ void PNX(adj_A)(
   MPI_Comm_rank(ths->comm_cart, &myrnk);
 
   /* check if the output arrays are allocated */
-  if(local_M != 0){
+  if(nodes->local_M != 0){
     if(compute_flags & PNFFT_COMPUTE_F && nodes->f == NULL)
       PX(fprintf)(ths->comm_cart, stderr, "Error: missing memory allocation of nodes->f !!!\n"); 
     if(compute_flags & PNFFT_COMPUTE_GRAD_F && nodes->grad_f == NULL)
