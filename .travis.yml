@@ -28,5 +28,8 @@ after_failure: "cat config.log"
 
 ## Turn on email notifications.
 notifications:
-  email: true
-
+  email:
+    recipients:
+      - michael.pippig.tuc@gmail.com
+    on_success: always # choose between: always, change, never
+    on_failure: always # choose between: always, change, never
