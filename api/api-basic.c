@@ -207,7 +207,7 @@ void PNX(trafo)(
 
   PNFFT_START_TIMING(ths->comm_cart, ths->timer_trafo[PNFFT_TIMER_WHOLE]);
 
-  if( ~compute_flags & (PNFFT_COMPUTE_ACCUMULATED | PNFFT_OMIT_CONV) ){
+  if( (~compute_flags & PNFFT_COMPUTE_ACCUMULATED) && (~compute_flags & PNFFT_OMIT_CONV) ){
     INT tuple = (ths->trafo_flag & PNFFTI_TRAFO_C2R) ? 1 : 2;
 
     if(compute_flags & PNFFT_COMPUTE_F)
