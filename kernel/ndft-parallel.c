@@ -33,8 +33,6 @@
 #define PNFFT_TUNE_LOOP_ADJ_B 0
 #define PNFFT_TUNE_PRECOMPUTE_INTPOL 0
 
-#define PNFFT_SAVE_FREE(array) = if(array != NULL) free(array);
-
 static void loop_over_particles_trafo(
     PNX(plan) ths, PNX(nodes) nodes,
     R *f, R *grad_f, R *hessian_f, INT offset, INT stride,
@@ -2594,12 +2592,12 @@ void PNX(trafo_B_ad)(
   PNFFT_FINISH_TIMING(ths->timer_trafo[PNFFT_TIMER_LOOP_B]);
 
 #if PNFFT_ENABLE_DEBUG
-  PNX(debug_sum_print)(ths->f, nodes->local_M,
+  PNX(debug_sum_print)(f, nodes->local_M,
       !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
       "PNFFT: Sum of f");
 
   if(compute_flags & PNFFT_COMPUTE_GRAD_F){
-    PNX(debug_sum_print_strides)(nodes->grad_f, nodes->local_M, 3,
+    PNX(debug_sum_print_strides)(grad_f, nodes->local_M, 3,
         !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
         "PNFFT: Sum of %dst component of grad_f");
   }
@@ -2655,7 +2653,7 @@ void PNX(adjoint_B_ad)(
   PNX(debug_sum_print)(nodes->x, 3*nodes->local_M, 0,
       "PNFFT^H: Sum of x after sort");
   
-  PNX(debug_sum_print)(ths->f, nodes->local_M,
+  PNX(debug_sum_print)(f, nodes->local_M,
       !(ths->trafo_flag & PNFFTI_TRAFO_C2R),
       "PNFFT^H: Sum of f");
 #endif
@@ -2716,7 +2714,7 @@ static void loop_over_particles_trafo(
   R *pre_psi = NULL, *pre_dpsi = NULL, *pre_ddpsi = NULL;
   R x[3];
 #if PNFFT_ENABLE_DEBUG
-  R rsum=0.0, rsum_derive=0.0, grsum, grsum_derive;
+  R rsum=0.0, rsum_d=0.0, rsum_dd=0.0, grsum, grsum_d, grsum_dd;
 #endif
 
   if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
@@ -2779,19 +2777,25 @@ static void loop_over_particles_trafo(
 
 #if PNFFT_ENABLE_DEBUG
         /* Don't want to use PNX(debug_sum_print) because we are in a loop */
-        if(compute_flags & PNFFT_COMPUTE_GRAD_F)
-          for(int t=0; t<3*cutoff; t++)
-            rsum_derive += pnfft_fabs(pre_dpsi[t]);
+        for(int t=0; t<3*cutoff; t++)
+          rsum_d += pnfft_fabs(pre_dpsi[t]);
 #endif
     }
 
-    if( ~nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI )
+    if( ~nodes->precompute_flags & PNFFT_PRE_HESSIAN_PSI ) {
       if(compute_flags & PNFFT_COMPUTE_HESSIAN_F)
         pre_ddpsi_tensor(
             ths->n, ths->b, ths->m, ths->cutoff, x, floor_nx_j, ths->spline_coeffs,
             ths->intpol_order, ths->intpol_num_nodes, ths->intpol_tables_ddpsi,
             pre_psi, pre_dpsi, ths->pnfft_flags,
             pre_ddpsi);
+
+#if PNFFT_ENABLE_DEBUG
+        /* Don't want to use PNX(debug_sum_print) because we are in a loop */
+        for(int t=0; t<3*cutoff; t++)
+          rsum_dd += pnfft_fabs(pre_ddpsi[t]);
+#endif
+    }
 
     INT ind = j*stride + offset;
     m0 = PNFFT_PLAIN_INDEX_3D(u_j, local_ngc);
@@ -2871,10 +2875,11 @@ static void loop_over_particles_trafo(
   MPI_Reduce(&rsum, &grsum, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
   PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT: Sum of pre_psi: %e\n", grsum);
 
-  if(compute_flags & PNFFT_COMPUTE_GRAD_F){
-    MPI_Reduce(&rsum_derive, &grsum_derive, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
-    PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT: Sum of pre_dpsi: %e\n", grsum_derive);
-  }
+  MPI_Reduce(&rsum_d, &grsum_d, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
+  PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT: Sum of pre_dpsi: %e\n", grsum_d);
+
+  MPI_Reduce(&rsum_dd, &grsum_dd, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
+  PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT: Sum of pre_dpsi: %e\n", grsum_dd);
 #endif
 
   if(pre_psi != NULL)   PNX(free)(pre_psi);
@@ -2896,7 +2901,7 @@ static void loop_over_particles_adj(
   R *pre_psi = NULL, *pre_dpsi = NULL;
   R x[3];
 #if PNFFT_ENABLE_DEBUG
-  R rsum = 0.0, grsum;
+  R rsum=0.0, rsum_d=0.0, grsum, grsum_d;
 #endif
 
   if( ~nodes->precompute_flags & PNFFT_PRE_PSI )
@@ -2956,9 +2961,8 @@ static void loop_over_particles_adj(
 
 #if PNFFT_ENABLE_DEBUG
         /* Don't want to use PNX(debug_sum_print) because we are in a loop */
-        if(compute_flags & PNFFT_COMPUTE_GRAD_F)
-          for(int t=0; t<3*cutoff; t++)
-            rsum_derive += pnfft_fabs(pre_dpsi[t]);
+        for(int t=0; t<3*cutoff; t++)
+          rsum_d += pnfft_fabs(pre_dpsi[t]);
 #endif
     }
 
@@ -2995,6 +2999,9 @@ static void loop_over_particles_adj(
 #if PNFFT_ENABLE_DEBUG
   MPI_Reduce(&rsum, &grsum, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
   PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT^H: Sum of pre_psi: %e\n", grsum);
+
+  MPI_Reduce(&rsum_d, &grsum_d, 1, PNFFT_MPI_REAL_TYPE, MPI_SUM, 0, MPI_COMM_WORLD);
+  PX(fprintf)(MPI_COMM_WORLD, stderr, "PNFFT^H: Sum of pre_dpsi: %e\n", grsum_d);
 #endif
 
   if(pre_psi != NULL)   PNX(free)(pre_psi);
