@@ -20,6 +20,7 @@ check_PROGRAMS =
 #else
 check_PROGRAMS += \
 	pnfft_test \
-	check_trafo check_trafo_transposed
+	check_trafo check_trafo_transposed \
+	pnfft_test_adj
 #endif
 
